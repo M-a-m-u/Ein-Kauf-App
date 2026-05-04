@@ -1,1 +1,277 @@
 
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Einkaufs-Planer Pro v2.1</title>
+
+    <link rel="apple-touch-icon" href="icon.PNG">
+    <meta name="apple-mobile-web-app-title" content="E-K-A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <style>
+        :root {
+            --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --green: #34c759;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg); margin: 0; padding: env(safe-area-inset-top) 15px 100px 15px;
+            color: #000; -webkit-tap-highlight-color: transparent;
+        }
+        .screen { display: none; }
+        .active { display: block; }
+
+        /* Header & Zentrierung */
+        .app-header { text-align: center; margin: 20px 0; }
+        .main-emoji { font-size: 60px; display: block; margin-bottom: 10px; }
+        h1 { margin: 0; font-weight: 800; font-size: 28px; }
+
+        .header-row { 
+            display: flex; align-items: center; padding: 10px 0; position: sticky; 
+            top: 0; background: var(--bg); z-index: 10; border-bottom: 1px solid #d1d1d6; margin-bottom: 20px;
+        }
+        .back-btn { font-size: 32px; color: var(--blue); margin-right: 15px; font-weight: bold; cursor: pointer; }
+
+        /* Grid Home */
+        .discounter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; }
+        .shop-btn {
+            background: var(--card); border-radius: 20px; height: 140px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e5e5e5;
+        }
+        .shop-btn img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 10px; }
+
+        /* Listen & Cards */
+        .list-card {
+            background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px;
+            display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .info-area { flex: 1; }
+        .info-hersteller { font-size: 11px; color: var(--gray); text-transform: uppercase; }
+        .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; }
+        
+        /* Inputs */
+        .qty-input { width: 55px; padding: 10px; border-radius: 10px; border: 2px solid var(--blue); text-align: center; font-size: 18px; font-weight: bold; background: #fff; }
+        select, input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 16px; -webkit-appearance: none; }
+
+        .btn-action { width: 100%; background: #3a3a3c; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; margin-top: 10px; }
+        .btn-blue { background: var(--blue); }
+        .btn-clear { background: none; border: 1px solid var(--red); color: var(--red); padding: 5px 10px; border-radius: 10px; margin-left: auto; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+    <div class="app-header">
+        <span class="main-emoji">🛒</span>
+        <h1>Einkaufsapp</h1>
+    </div>
+
+    <div class="discounter-grid">
+        <div class="shop-btn" onclick="goShop('Aldi')"><img src="aldi.PNG">Aldi</div>
+        <div class="shop-btn" onclick="goShop('Edeka')"><img src="edeka.PNG">Edeka</div>
+        <div class="shop-btn" onclick="goShop('Penny')"><img src="penny.PNG">Penny</div>
+        <div class="shop-btn" onclick="goShop('Rewe')"><img src="rewe.PNG">Rewe</div>
+    </div>
+    <button class="btn-action" onclick="goScreen('db')">⚙️ Datenbank / Produkte</button>
+    <button class="btn-action" style="background:#8e8e93" onclick="exportJSON()">📥 Datenbank Sichern (JSON)</button>
+    <button class="btn-action" style="background:#8e8e93" onclick="document.getElementById('importFile').click()">📤 Datenbank Laden (JSON)</button>
+    <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
+</div>
+
+<!-- LISTE (Einkaufswagen) -->
+<div id="list" class="screen">
+    <div class="header-row">
+        <div class="back-btn" onclick="goScreen('home')">‹</div>
+        <h2 id="current-shop-title" style="margin:0;">Laden</h2>
+        <button class="btn-clear" onclick="clearCurrentList()">Leeren</button>
+    </div>
+
+    <div style="background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px;">
+        <label style="font-weight:bold; font-size:14px; display:block; margin-bottom:8px;">Produkt aus Datenbank wählen:</label>
+        <select id="db-select" onchange="addProductToList()">
+            <option value="">-- Suchen & Auswählen --</option>
+        </select>
+    </div>
+
+    <div id="shopping-list-content"></div>
+</div>
+
+<!-- DATENBANK (Stammdaten) -->
+<div id="db" class="screen">
+    <div class="header-row">
+        <div class="back-btn" onclick="goScreen('home')">‹</div>
+        <h2 style="margin:0;">Stammdaten</h2>
+    </div>
+    <input type="text" id="dbH" placeholder="Hersteller (z.B. Hellmann's)">
+    <input type="text" id="dbP" placeholder="Produktname (z.B. Mayonnaise)">
+    <input type="text" id="dbG" placeholder="Gewicht/Einheit (z.B. 250ml)">
+    <button class="btn-action btn-blue" onclick="saveToMaster()">In Datenbank speichern</button>
+    
+    <h3 style="margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:10px;">Sortierte Bestandsliste</h3>
+    <div id="db-view"></div>
+</div>
+
+<script>
+    let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
+    let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
+
+    function goScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'db') renderDBView();
+        if(id === 'list') { renderShopList(); updateDropdown(); }
+        window.scrollTo(0,0);
+    }
+
+    // Hilfsfunktion: Alphabetisch sortieren
+    function sortMasterData() {
+        masterData.sort((a, b) => a.p.localeCompare(b.p));
+    }
+
+    // --- JSON Backup ---
+    function exportJSON() {
+        const dataStr = JSON.stringify({master: masterData, cart: cart});
+        const blob = new Blob([dataStr], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "einkaufsapp_backup.json";
+        a.click();
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                masterData = imported.master || [];
+                cart = imported.cart || {};
+                sortMasterData();
+                saveAll();
+                alert("Daten erfolgreich geladen!");
+                location.reload();
+            } catch(err) { alert("Fehler beim Laden der Datei."); }
+        };
+        reader.readAsText(file);
+    }
+
+    // --- Datenbank (Master) ---
+    function saveToMaster() {
+        const p = document.getElementById('dbP').value;
+        if(!p) return alert("Bitte Produktnamen eingeben!");
+        
+        masterData.push({ 
+            id: Date.now(), 
+            h: document.getElementById('dbH').value || "Kein Hersteller", 
+            p: p, 
+            g: document.getElementById('dbG').value || "-" 
+        });
+        
+        sortMasterData();
+        saveAll();
+        
+        document.getElementById('dbH').value = "";
+        document.getElementById('dbP').value = "";
+        document.getElementById('dbG').value = "";
+        renderDBView();
+    }
+
+    function renderDBView() {
+        sortMasterData();
+        document.getElementById('db-view').innerHTML = masterData.map((item, idx) => `
+            <div class="list-card">
+                <div class="info-area">
+                    <div class="info-hersteller">${item.h}</div>
+                    <div class="info-name">${item.p}</div>
+                    <div class="info-gewicht">${item.g}</div>
+                </div>
+                <button onclick="deleteMaster(${idx})" style="color:red; border:none; background:none; font-weight:bold;">Löschen</button>
+            </div>
+        `).join('');
+    }
+
+    function deleteMaster(idx) {
+        if(confirm("Dieses Produkt endgültig aus der Datenbank löschen?")) { 
+            masterData.splice(idx, 1); 
+            saveAll(); 
+            renderDBView(); 
+        }
+    }
+
+    // --- Shop / Cart Logik ---
+    let currentShop = "";
+    function goShop(shop) {
+        currentShop = shop;
+        document.getElementById('current-shop-title').innerText = shop;
+        if(!cart[currentShop]) cart[currentShop] = [];
+        goScreen('list');
+    }
+
+    function updateDropdown() {
+        const sel = document.getElementById('db-select');
+        sortMasterData(); // Sicherstellen, dass auch das Dropdown sortiert ist
+        sel.innerHTML = '<option value="">-- Suchen & Auswählen --</option>' + 
+            masterData.map(item => `<option value="${item.id}">${item.p} (${item.h})</option>`).join('');
+    }
+
+    function addProductToList() {
+        const id = document.getElementById('db-select').value;
+        if(!id) return;
+        const item = masterData.find(m => m.id == id);
+        if(!cart[currentShop].find(c => c.id == id)) {
+            cart[currentShop].push({...item, qty: 1});
+            // Auch die aktuelle Liste im Laden alphabetisch sortieren
+            cart[currentShop].sort((a, b) => a.p.localeCompare(b.p));
+            saveAll();
+            renderShopList();
+        }
+        document.getElementById('db-select').value = "";
+    }
+
+    function updateQty(id, val) {
+        const item = cart[currentShop].find(c => c.id == id);
+        if(item) {
+            item.qty = val;
+            if(val <= 0) {
+                cart[currentShop] = cart[currentShop].filter(c => c.id != id);
+            }
+            saveAll();
+            renderShopList();
+        }
+    }
+
+    function renderShopList() {
+        const container = document.getElementById('shopping-list-content');
+        container.innerHTML = cart[currentShop].map(item => `
+            <div class="list-card">
+                <div class="info-area">
+                    <div class="info-hersteller">${item.h}</div>
+                    <div class="info-name">${item.p}</div>
+                    <div class="info-gewicht">${item.g}</div>
+                </div>
+                <input type="number" class="qty-input" value="${item.qty}" onchange="updateQty(${item.id}, this.value)">
+            </div>
+        `).join('');
+    }
+
+    function clearCurrentList() {
+        if(confirm("Ganze Einkaufsliste für " + currentShop + " leeren?")) {
+            cart[currentShop] = [];
+            saveAll();
+            renderShopList();
+        }
+    }
+
+    function saveAll() {
+        localStorage.setItem('shop_master', JSON.stringify(masterData));
+        localStorage.setItem('shop_cart', JSON.stringify(cart));
+    }
+</script>
+</body>
+</html>
