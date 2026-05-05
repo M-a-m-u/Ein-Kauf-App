@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v2.5</title>
+    <title>Einkaufs-Planer Pro v3.2</title>
     <style>
         :root {
-            --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --green: #34c759;
+            --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --orange: #ff9500;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -16,7 +16,6 @@
         .screen { display: none; }
         .active { display: block; }
 
-        /* Header & Zentrierung */
         .app-header { text-align: center; margin: 20px 0; }
         .main-emoji { font-size: 60px; display: block; margin-bottom: 10px; }
         h1 { margin: 0; font-weight: 800; font-size: 28px; }
@@ -27,46 +26,56 @@
         }
         .back-btn { font-size: 32px; color: var(--blue); margin-right: 15px; font-weight: bold; cursor: pointer; }
 
-        /* Grid Home */
         .discounter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; }
         .shop-btn {
             background: var(--card); border-radius: 20px; height: 140px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e5e5e5;
-            transition: transform 0.1s;
         }
-        .shop-btn:active { transform: scale(0.95); }
         .shop-btn img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 10px; }
 
-        /* Listen & Cards */
         .list-card {
             background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px;
             display: flex; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         }
-        .info-area { flex: 1; }
+        .info-area { flex: 1; min-width: 0; cursor: pointer; }
         .info-hersteller { font-size: 11px; color: var(--gray); text-transform: uppercase; }
-        .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; }
+        .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; color: #000; }
+        .info-gewicht { font-size: 13px; color: #3a3a3c; margin-top: 2px; }
         
-        /* Inputs & Suchfeld */
-        .qty-input { width: 55px; padding: 10px; border-radius: 10px; border: 2px solid var(--blue); text-align: center; font-size: 18px; font-weight: bold; background: #fff; }
-        input[type="text"], input[type="number"], .search-box { 
-            width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 16px; box-sizing: border-box;
+        .stepper { display: flex; align-items: center; background: #fff; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; margin-left: 10px; flex-shrink: 0; }
+        .stepper-btn { width: 35px; height: 40px; background: #fff; color: var(--blue); border: none; font-size: 20px; font-weight: bold; }
+        .stepper-val { width: 30px; text-align: center; font-size: 18px; font-weight: bold; border-left: 1px solid #eee; border-right: 1px solid #eee; }
+
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; }
+
+        .search-container { position: relative; background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px; }
+        .search-wrapper { position: relative; display: flex; align-items: center; }
+        .list-toggle { position: absolute; right: 15px; color: var(--blue); font-size: 12px; font-weight: bold; }
+
+        #search-results {
+            background: white; border-radius: 12px; max-height: 250px; overflow-y: auto; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15); margin-top: 5px; display: none;
+            position: absolute; width: 100%; left: 0; z-index: 100;
         }
+        .search-item { padding: 15px; border-bottom: 1px solid #eee; font-size: 16px; }
 
         .btn-action { width: 100%; background: #3a3a3c; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; margin-top: 10px; }
         .btn-blue { background: var(--blue); }
+        .btn-orange { background: var(--orange); }
         .btn-clear { background: none; border: 1px solid var(--red); color: var(--red); padding: 5px 10px; border-radius: 10px; margin-left: auto; font-weight: 600; }
+        
+        .db-controls { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
+        .db-btn { border: none; background: none; font-weight: bold; font-size: 13px; padding: 5px; }
     </style>
 </head>
 <body>
 
-<!-- HOME SCREEN -->
 <div id="home" class="screen active">
     <div class="app-header">
         <span class="main-emoji">🛒</span>
         <h1>Einkaufsapp</h1>
     </div>
-
     <div class="discounter-grid">
         <div class="shop-btn" onclick="vibrate(); goShop('Aldi')"><img src="aldi.png">Aldi</div>
         <div class="shop-btn" onclick="vibrate(); goShop('Edeka')"><img src="edeka.png">Edeka</div>
@@ -79,7 +88,6 @@
     <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
 </div>
 
-<!-- LIST SCREEN (Einkaufswagen mit SUCHE) -->
 <div id="list" class="screen">
     <div class="header-row">
         <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
@@ -87,28 +95,29 @@
         <button class="btn-clear" onclick="vibrate(); clearCurrentList()">Leeren</button>
     </div>
 
-    <!-- Die neue Such-Zentrale -->
-    <div style="background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px;">
-        <label style="font-weight:bold; font-size:14px; display:block; margin-bottom:8px;">Produkt suchen & hinzufügen:</label>
-        <input type="text" id="db-search" list="db-options" class="search-box" placeholder="Tippe einen Buchstaben..." oninput="checkSelection(this.value)" style="margin-bottom:0;">
-        <datalist id="db-options">
-            <!-- Wird per JS gefüllt -->
-        </datalist>
+    <div class="search-container">
+        <label style="font-weight:bold; font-size:14px; display:block; margin-bottom:8px;">Produkt suchen oder wählen:</label>
+        <div class="search-wrapper" onclick="toggleFullList()">
+            <input type="text" id="db-search" placeholder="Tippen oder Liste öffnen..." oninput="filterProducts(this.value)" autocomplete="off">
+            <span class="list-toggle">▼</span>
+        </div>
+        <div id="search-results"></div>
     </div>
 
     <div id="shopping-list-content"></div>
 </div>
 
-<!-- DATABASE SCREEN -->
 <div id="db" class="screen">
     <div class="header-row">
         <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
-        <h2 style="margin:0;">Stammdaten</h2>
+        <h2 id="db-title" style="margin:0;">Stammdaten</h2>
     </div>
+    <input type="hidden" id="edit-id">
     <input type="text" id="dbH" placeholder="Hersteller (z.B. Hellmann's)">
     <input type="text" id="dbP" placeholder="Produktname (z.B. Mayonnaise)">
     <input type="text" id="dbG" placeholder="Gewicht/Einheit (z.B. 250ml)">
-    <button class="btn-action btn-blue" onclick="vibrate(); saveToMaster()">In Datenbank speichern</button>
+    <button id="db-save-btn" class="btn-action btn-blue" onclick="vibrate(); saveToMaster()">In Datenbank speichern</button>
+    <button id="db-cancel-btn" class="btn-action" style="display:none; background:#8e8e93" onclick="resetDBForm()">Abbrechen</button>
     
     <h3 style="margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:10px;">Sortierte Bestandsliste</h3>
     <div id="db-view"></div>
@@ -118,166 +127,185 @@
     let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
 
-    // Kurzes haptisches Feedback für das iPhone
-    function vibrate() {
-        if (navigator.vibrate) navigator.vibrate(15);
+    function vibrate() { if (navigator.vibrate) navigator.vibrate(15); }
+
+    function searchOnGoogle(hersteller, produkt, gewicht) {
+        vibrate();
+        const h = hersteller === "Kein Hersteller" ? "" : hersteller;
+        const g = gewicht === "-" ? "" : gewicht;
+        const query = encodeURIComponent(`${h} ${produkt} ${g}`);
+        window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
     }
 
     function goScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        if(id === 'db') renderDBView();
-        if(id === 'list') { renderShopList(); updateDropdown(); }
+        if(id === 'db') { renderDBView(); resetDBForm(); }
+        if(id === 'list') { renderShopList(); closeSearch(); }
         window.scrollTo(0,0);
     }
 
-    function sortMasterData() {
-        masterData.sort((a, b) => a.p.localeCompare(b.p));
+    function sortMasterData() { masterData.sort((a, b) => a.p.localeCompare(b.p)); }
+
+    function filterProducts(val) {
+        const resDiv = document.getElementById('search-results');
+        if (val.length < 1) { resDiv.style.display = "none"; return; }
+        const matches = masterData.filter(m => m.p.toLowerCase().includes(val.toLowerCase()) || m.h.toLowerCase().includes(val.toLowerCase()));
+        showMatches(matches);
     }
 
-    // --- Backup Funktionen ---
-    function exportJSON() {
-        const dataStr = JSON.stringify({master: masterData, cart: cart});
-        const blob = new Blob([dataStr], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "einkaufsapp_backup.json";
-        a.click();
+    function toggleFullList() {
+        const resDiv = document.getElementById('search-results');
+        (resDiv.style.display === "block") ? closeSearch() : showMatches(masterData);
     }
 
-    function importJSON(event) {
-        const file = event.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const imported = JSON.parse(e.target.result);
-                masterData = imported.master || [];
-                cart = imported.cart || {};
-                sortMasterData();
-                saveAll();
-                alert("Daten erfolgreich geladen!");
-                location.reload();
-            } catch(err) { alert("Fehler beim Laden."); }
-        };
-        reader.readAsText(file);
+    function showMatches(matches) {
+        const resDiv = document.getElementById('search-results');
+        if (matches.length > 0) {
+            resDiv.style.display = "block";
+            resDiv.innerHTML = matches.map(m => `<div class="search-item" onclick="selectProductById(${m.id})"><b>${m.p}</b> <br><small>${m.h} (${m.g})</small></div>`).join('');
+        } else { resDiv.style.display = "none"; }
     }
 
-    // --- Datenbank Management ---
-    function saveToMaster() {
-        const p = document.getElementById('dbP').value;
-        if(!p) return alert("Name fehlt!");
-        
-        masterData.push({ 
-            id: Date.now(), 
-            h: document.getElementById('dbH').value || "Kein Hersteller", 
-            p: p, 
-            g: document.getElementById('dbG').value || "-" 
-        });
-        
-        sortMasterData();
-        saveAll();
-        
-        document.getElementById('dbH').value = "";
-        document.getElementById('dbP').value = "";
-        document.getElementById('dbG').value = "";
-        renderDBView();
+    function closeSearch() {
+        document.getElementById('db-search').value = "";
+        document.getElementById('search-results').style.display = "none";
     }
 
-    function renderDBView() {
-        sortMasterData();
-        document.getElementById('db-view').innerHTML = masterData.map((item, idx) => `
-            <div class="list-card">
-                <div class="info-area">
-                    <div class="info-hersteller">${item.h}</div>
-                    <div class="info-name">${item.p}</div>
-                    <div class="info-gewicht">${item.g}</div>
-                </div>
-                <button onclick="deleteMaster(${idx})" style="color:var(--red); border:none; background:none; font-weight:bold;">Löschen</button>
-            </div>
-        `).join('');
-    }
-
-    function deleteMaster(idx) {
-        if(confirm("Produkt wirklich löschen?")) { 
-            masterData.splice(idx, 1); 
-            saveAll(); 
-            renderDBView(); 
-        }
-    }
-
-    // --- Shop & Such-Logik ---
-    let currentShop = "";
-    function goShop(shop) {
-        currentShop = shop;
-        document.getElementById('current-shop-title').innerText = shop;
-        if(!cart[currentShop]) cart[currentShop] = [];
-        goScreen('list');
-    }
-
-    // Füllt die Vorschlagsliste für das Suchfeld
-    function updateDropdown() {
-        const datalist = document.getElementById('db-options');
-        sortMasterData();
-        datalist.innerHTML = masterData.map(item => `<option value="${item.p} (${item.h})">`).join('');
-    }
-
-    // Prüft bei jeder Eingabe, ob ein Treffer ausgewählt wurde
-    function checkSelection(val) {
-        const found = masterData.find(m => `${m.p} (${m.h})` === val);
-        
+    function selectProductById(id) {
+        const found = masterData.find(m => m.id === id);
         if (found) {
             if (!cart[currentShop].find(c => c.id === found.id)) {
                 cart[currentShop].push({...found, qty: 1});
                 cart[currentShop].sort((a, b) => a.p.localeCompare(b.p));
-                saveAll();
-                renderShopList();
-                vibrate();
+                saveAll(); renderShopList(); vibrate();
             }
-            // Eingabe leeren & Tastatur schließen für flüssigen Workflow
-            document.getElementById('db-search').value = "";
-            document.activeElement.blur(); 
+            closeSearch(); document.activeElement.blur(); 
         }
     }
 
-    function updateQty(id, val) {
+    function changeQty(id, delta) {
         const item = cart[currentShop].find(c => c.id == id);
-        if(item) {
-            item.qty = val;
-            if(val <= 0) {
-                cart[currentShop] = cart[currentShop].filter(c => c.id != id);
-            }
-            saveAll();
-            renderShopList();
+        if (item) {
+            item.qty = parseInt(item.qty) + delta;
+            if (item.qty <= 0) { cart[currentShop] = cart[currentShop].filter(c => c.id != id); }
+            saveAll(); renderShopList(); vibrate();
         }
     }
 
     function renderShopList() {
-        const container = document.getElementById('shopping-list-content');
-        container.innerHTML = cart[currentShop].map(item => `
+        document.getElementById('shopping-list-content').innerHTML = cart[currentShop].map(item => `
             <div class="list-card">
-                <div class="info-area">
+                <div class="info-area" onclick="searchOnGoogle('${item.h}', '${item.p}', '${item.g}')">
                     <div class="info-hersteller">${item.h}</div>
                     <div class="info-name">${item.p}</div>
                     <div class="info-gewicht">${item.g}</div>
                 </div>
-                <input type="number" class="qty-input" value="${item.qty}" onchange="updateQty(${item.id}, this.value)">
+                <div class="stepper">
+                    <button class="stepper-btn" onclick="changeQty(${item.id}, -1)">–</button>
+                    <div class="stepper-val">${item.qty}</div>
+                    <button class="stepper-btn" onclick="changeQty(${item.id}, 1)">+</button>
+                </div>
             </div>
         `).join('');
     }
 
-    function clearCurrentList() {
-        if(confirm("Liste für " + currentShop + " leeren?")) {
-            cart[currentShop] = [];
-            saveAll();
-            renderShopList();
+    // --- DATENBANK FUNKTIONEN (NEU MIT EDIT) ---
+    function saveToMaster() {
+        const p = document.getElementById('dbP').value;
+        const editId = document.getElementById('edit-id').value;
+        if(!p) return alert("Name fehlt!");
+
+        if (editId) {
+            // Update existierender Datensatz
+            const index = masterData.findIndex(m => m.id == editId);
+            if (index !== -1) {
+                masterData[index].h = document.getElementById('dbH').value || "Kein Hersteller";
+                masterData[index].p = p;
+                masterData[index].g = document.getElementById('dbG').value || "-";
+            }
+        } else {
+            // Neuer Datensatz
+            masterData.push({ 
+                id: Date.now(), 
+                h: document.getElementById('dbH').value || "Kein Hersteller", 
+                p: p, 
+                g: document.getElementById('dbG').value || "-"
+            });
+        }
+        
+        sortMasterData(); saveAll(); resetDBForm(); renderDBView();
+    }
+
+    function editProduct(id) {
+        vibrate();
+        const item = masterData.find(m => m.id == id);
+        if (item) {
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('dbH').value = item.h;
+            document.getElementById('dbP').value = item.p;
+            document.getElementById('dbG').value = item.g;
+            
+            document.getElementById('db-save-btn').innerText = "Änderung übernehmen";
+            document.getElementById('db-save-btn').className = "btn-action btn-orange";
+            document.getElementById('db-cancel-btn').style.display = "block";
+            window.scrollTo(0,0);
         }
     }
 
-    function saveAll() {
-        localStorage.setItem('shop_master', JSON.stringify(masterData));
-        localStorage.setItem('shop_cart', JSON.stringify(cart));
+    function resetDBForm() {
+        document.getElementById('edit-id').value = "";
+        document.getElementById('dbH').value = "";
+        document.getElementById('dbP').value = "";
+        document.getElementById('dbG').value = "";
+        document.getElementById('db-save-btn').innerText = "In Datenbank speichern";
+        document.getElementById('db-save-btn').className = "btn-action btn-blue";
+        document.getElementById('db-cancel-btn').style.display = "none";
+    }
+
+    function renderDBView() {
+        sortMasterData();
+        document.getElementById('db-view').innerHTML = masterData.map((item) => `
+            <div class="list-card">
+                <div class="info-area" onclick="searchOnGoogle('${item.h}', '${item.p}', '${item.g}')">
+                    <div class="info-hersteller">${item.h}</div>
+                    <div class="info-name">${item.p}</div>
+                    <div class="info-gewicht">${item.g}</div>
+                </div>
+                <div class="db-controls">
+                    <button class="db-btn" style="color:var(--orange)" onclick="editProduct(${item.id})">Bearbeiten</button>
+                    <button class="db-btn" style="color:var(--red)" onclick="deleteMasterById(${item.id})">Löschen</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function deleteMasterById(id) {
+        if(confirm("Produkt wirklich löschen?")) { 
+            masterData = masterData.filter(m => m.id != id); 
+            saveAll(); renderDBView(); 
+        }
+    }
+
+    function goShop(shop) { currentShop = shop; document.getElementById('current-shop-title').innerText = shop; if(!cart[currentShop]) cart[currentShop] = []; goScreen('list'); }
+    function clearCurrentList() { if(confirm("Liste leeren?")) { cart[currentShop] = []; saveAll(); renderShopList(); } }
+    function saveAll() { localStorage.setItem('shop_master', JSON.stringify(masterData)); localStorage.setItem('shop_cart', JSON.stringify(cart)); }
+
+    function exportJSON() {
+        const dataStr = JSON.stringify({master: masterData, cart: cart});
+        const blob = new Blob([dataStr], {type: "application/json"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "einkaufsapp_v32_backup.json"; a.click();
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imported = JSON.parse(e.target.result);
+            masterData = imported.master || []; cart = imported.cart || {};
+            sortMasterData(); saveAll(); alert("Daten geladen!"); location.reload();
+        };
+        reader.readAsText(file);
     }
 </script>
 </body>
