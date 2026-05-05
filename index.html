@@ -1,16 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v2.1</title>
-
-    <link rel="apple-touch-icon" href="icon.PNG">
-    <meta name="apple-mobile-web-app-title" content="E-K-A">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
+    <title>Einkaufs-Planer Pro v2.5</title>
     <style>
         :root {
             --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --green: #34c759;
@@ -40,7 +33,9 @@
             background: var(--card); border-radius: 20px; height: 140px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e5e5e5;
+            transition: transform 0.1s;
         }
+        .shop-btn:active { transform: scale(0.95); }
         .shop-btn img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 10px; }
 
         /* Listen & Cards */
@@ -52,9 +47,11 @@
         .info-hersteller { font-size: 11px; color: var(--gray); text-transform: uppercase; }
         .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; }
         
-        /* Inputs */
+        /* Inputs & Suchfeld */
         .qty-input { width: 55px; padding: 10px; border-radius: 10px; border: 2px solid var(--blue); text-align: center; font-size: 18px; font-weight: bold; background: #fff; }
-        select, input[type="text"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 16px; -webkit-appearance: none; }
+        input[type="text"], input[type="number"], .search-box { 
+            width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; margin-bottom: 10px; font-size: 16px; box-sizing: border-box;
+        }
 
         .btn-action { width: 100%; background: #3a3a3c; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; margin-top: 10px; }
         .btn-blue { background: var(--blue); }
@@ -63,7 +60,7 @@
 </head>
 <body>
 
-<!-- HOME -->
+<!-- HOME SCREEN -->
 <div id="home" class="screen active">
     <div class="app-header">
         <span class="main-emoji">🛒</span>
@@ -71,45 +68,47 @@
     </div>
 
     <div class="discounter-grid">
-        <div class="shop-btn" onclick="goShop('Aldi')"><img src="aldi.PNG">Aldi</div>
-        <div class="shop-btn" onclick="goShop('Edeka')"><img src="edeka.PNG">Edeka</div>
-        <div class="shop-btn" onclick="goShop('Penny')"><img src="penny.PNG">Penny</div>
-        <div class="shop-btn" onclick="goShop('Rewe')"><img src="rewe.PNG">Rewe</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Aldi')"><img src="aldi.png">Aldi</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Edeka')"><img src="edeka.png">Edeka</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Penny')"><img src="penny.png">Penny</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Rewe')"><img src="rewe.png">Rewe</div>
     </div>
-    <button class="btn-action" onclick="goScreen('db')">⚙️ Datenbank / Produkte</button>
+    <button class="btn-action" onclick="vibrate(); goScreen('db')">⚙️ Datenbank / Produkte</button>
     <button class="btn-action" style="background:#8e8e93" onclick="exportJSON()">📥 Datenbank Sichern (JSON)</button>
     <button class="btn-action" style="background:#8e8e93" onclick="document.getElementById('importFile').click()">📤 Datenbank Laden (JSON)</button>
     <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
 </div>
 
-<!-- LISTE (Einkaufswagen) -->
+<!-- LIST SCREEN (Einkaufswagen mit SUCHE) -->
 <div id="list" class="screen">
     <div class="header-row">
-        <div class="back-btn" onclick="goScreen('home')">‹</div>
+        <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
         <h2 id="current-shop-title" style="margin:0;">Laden</h2>
-        <button class="btn-clear" onclick="clearCurrentList()">Leeren</button>
+        <button class="btn-clear" onclick="vibrate(); clearCurrentList()">Leeren</button>
     </div>
 
+    <!-- Die neue Such-Zentrale -->
     <div style="background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px;">
-        <label style="font-weight:bold; font-size:14px; display:block; margin-bottom:8px;">Produkt aus Datenbank wählen:</label>
-        <select id="db-select" onchange="addProductToList()">
-            <option value="">-- Suchen & Auswählen --</option>
-        </select>
+        <label style="font-weight:bold; font-size:14px; display:block; margin-bottom:8px;">Produkt suchen & hinzufügen:</label>
+        <input type="text" id="db-search" list="db-options" class="search-box" placeholder="Tippe einen Buchstaben..." oninput="checkSelection(this.value)" style="margin-bottom:0;">
+        <datalist id="db-options">
+            <!-- Wird per JS gefüllt -->
+        </datalist>
     </div>
 
     <div id="shopping-list-content"></div>
 </div>
 
-<!-- DATENBANK (Stammdaten) -->
+<!-- DATABASE SCREEN -->
 <div id="db" class="screen">
     <div class="header-row">
-        <div class="back-btn" onclick="goScreen('home')">‹</div>
+        <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
         <h2 style="margin:0;">Stammdaten</h2>
     </div>
     <input type="text" id="dbH" placeholder="Hersteller (z.B. Hellmann's)">
     <input type="text" id="dbP" placeholder="Produktname (z.B. Mayonnaise)">
     <input type="text" id="dbG" placeholder="Gewicht/Einheit (z.B. 250ml)">
-    <button class="btn-action btn-blue" onclick="saveToMaster()">In Datenbank speichern</button>
+    <button class="btn-action btn-blue" onclick="vibrate(); saveToMaster()">In Datenbank speichern</button>
     
     <h3 style="margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:10px;">Sortierte Bestandsliste</h3>
     <div id="db-view"></div>
@@ -119,6 +118,11 @@
     let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
 
+    // Kurzes haptisches Feedback für das iPhone
+    function vibrate() {
+        if (navigator.vibrate) navigator.vibrate(15);
+    }
+
     function goScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
@@ -127,12 +131,11 @@
         window.scrollTo(0,0);
     }
 
-    // Hilfsfunktion: Alphabetisch sortieren
     function sortMasterData() {
         masterData.sort((a, b) => a.p.localeCompare(b.p));
     }
 
-    // --- JSON Backup ---
+    // --- Backup Funktionen ---
     function exportJSON() {
         const dataStr = JSON.stringify({master: masterData, cart: cart});
         const blob = new Blob([dataStr], {type: "application/json"});
@@ -156,15 +159,15 @@
                 saveAll();
                 alert("Daten erfolgreich geladen!");
                 location.reload();
-            } catch(err) { alert("Fehler beim Laden der Datei."); }
+            } catch(err) { alert("Fehler beim Laden."); }
         };
         reader.readAsText(file);
     }
 
-    // --- Datenbank (Master) ---
+    // --- Datenbank Management ---
     function saveToMaster() {
         const p = document.getElementById('dbP').value;
-        if(!p) return alert("Bitte Produktnamen eingeben!");
+        if(!p) return alert("Name fehlt!");
         
         masterData.push({ 
             id: Date.now(), 
@@ -191,20 +194,20 @@
                     <div class="info-name">${item.p}</div>
                     <div class="info-gewicht">${item.g}</div>
                 </div>
-                <button onclick="deleteMaster(${idx})" style="color:red; border:none; background:none; font-weight:bold;">Löschen</button>
+                <button onclick="deleteMaster(${idx})" style="color:var(--red); border:none; background:none; font-weight:bold;">Löschen</button>
             </div>
         `).join('');
     }
 
     function deleteMaster(idx) {
-        if(confirm("Dieses Produkt endgültig aus der Datenbank löschen?")) { 
+        if(confirm("Produkt wirklich löschen?")) { 
             masterData.splice(idx, 1); 
             saveAll(); 
             renderDBView(); 
         }
     }
 
-    // --- Shop / Cart Logik ---
+    // --- Shop & Such-Logik ---
     let currentShop = "";
     function goShop(shop) {
         currentShop = shop;
@@ -213,25 +216,29 @@
         goScreen('list');
     }
 
+    // Füllt die Vorschlagsliste für das Suchfeld
     function updateDropdown() {
-        const sel = document.getElementById('db-select');
-        sortMasterData(); // Sicherstellen, dass auch das Dropdown sortiert ist
-        sel.innerHTML = '<option value="">-- Suchen & Auswählen --</option>' + 
-            masterData.map(item => `<option value="${item.id}">${item.p} (${item.h})</option>`).join('');
+        const datalist = document.getElementById('db-options');
+        sortMasterData();
+        datalist.innerHTML = masterData.map(item => `<option value="${item.p} (${item.h})">`).join('');
     }
 
-    function addProductToList() {
-        const id = document.getElementById('db-select').value;
-        if(!id) return;
-        const item = masterData.find(m => m.id == id);
-        if(!cart[currentShop].find(c => c.id == id)) {
-            cart[currentShop].push({...item, qty: 1});
-            // Auch die aktuelle Liste im Laden alphabetisch sortieren
-            cart[currentShop].sort((a, b) => a.p.localeCompare(b.p));
-            saveAll();
-            renderShopList();
+    // Prüft bei jeder Eingabe, ob ein Treffer ausgewählt wurde
+    function checkSelection(val) {
+        const found = masterData.find(m => `${m.p} (${m.h})` === val);
+        
+        if (found) {
+            if (!cart[currentShop].find(c => c.id === found.id)) {
+                cart[currentShop].push({...found, qty: 1});
+                cart[currentShop].sort((a, b) => a.p.localeCompare(b.p));
+                saveAll();
+                renderShopList();
+                vibrate();
+            }
+            // Eingabe leeren & Tastatur schließen für flüssigen Workflow
+            document.getElementById('db-search').value = "";
+            document.activeElement.blur(); 
         }
-        document.getElementById('db-select').value = "";
     }
 
     function updateQty(id, val) {
@@ -261,7 +268,7 @@
     }
 
     function clearCurrentList() {
-        if(confirm("Ganze Einkaufsliste für " + currentShop + " leeren?")) {
+        if(confirm("Liste für " + currentShop + " leeren?")) {
             cart[currentShop] = [];
             saveAll();
             renderShopList();
