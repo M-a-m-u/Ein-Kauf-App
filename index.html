@@ -3,16 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v3.2</title>
-
-    <link rel="apple-touch-icon" href="icon.png">
-    <meta name="apple-mobile-web-app-title" content="E-K-A">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
+    <title>Einkaufs-Planer Pro v3.3</title>
     <style>
         :root {
-            --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --orange: #ff9500;
+            --bg: #f2f2f7; --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --orange: #ff9500; --green: #34c759;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -73,6 +67,11 @@
         
         .db-controls { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
         .db-btn { border: none; background: none; font-weight: bold; font-size: 13px; padding: 5px; }
+
+        /* Sortierung Styling */
+        .sort-row { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 10px 0; }
+        .sort-indicator { font-size: 12px; color: var(--gray); font-weight: 600; background: #e5e5ea; padding: 4px 10px; border-radius: 10px; }
+        .btn-sort { background: white; border: 1px solid var(--blue); color: var(--blue); padding: 6px 12px; border-radius: 10px; font-weight: bold; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -119,19 +118,30 @@
         <h2 id="db-title" style="margin:0;">Stammdaten</h2>
     </div>
     <input type="hidden" id="edit-id">
-    <input type="text" id="dbH" placeholder="Hersteller (z.B. Hellmann's)">
+    
+    <datalist id="hersteller-list"></datalist>
+    <input type="text" id="dbH" placeholder="Hersteller (z.B. Hellmann's)" list="hersteller-list">
+    
     <input type="text" id="dbP" placeholder="Produktname (z.B. Mayonnaise)">
     <input type="text" id="dbG" placeholder="Gewicht/Einheit (z.B. 250ml)">
+    
     <button id="db-save-btn" class="btn-action btn-blue" onclick="vibrate(); saveToMaster()">In Datenbank speichern</button>
     <button id="db-cancel-btn" class="btn-action" style="display:none; background:#8e8e93" onclick="resetDBForm()">Abbrechen</button>
     
-    <h3 style="margin-top:30px; border-bottom:1px solid #ccc; padding-bottom:10px;">Sortierte Bestandsliste</h3>
+    <div class="sort-row">
+        <h3 style="margin:0; font-size:17px;">Bestandsliste</h3>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span id="sort-label" class="sort-indicator">A-Z Name</span>
+            <button class="btn-sort" onclick="cycleSort()">⇅ Sortieren</button>
+        </div>
+    </div>
     <div id="db-view"></div>
 </div>
 
 <script>
     let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
+    let currentSortMode = 'name'; // 'name', 'hersteller', 'id'
 
     function vibrate() { if (navigator.vibrate) navigator.vibrate(15); }
 
@@ -146,13 +156,42 @@
     function goScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
-        if(id === 'db') { renderDBView(); resetDBForm(); }
+        if(id === 'db') { updateHerstellerList(); renderDBView(); resetDBForm(); }
         if(id === 'list') { renderShopList(); closeSearch(); }
         window.scrollTo(0,0);
     }
 
-    function sortMasterData() { masterData.sort((a, b) => a.p.localeCompare(b.p)); }
+    // --- SORTIERLOGIK ---
+    function cycleSort() {
+        vibrate();
+        if (currentSortMode === 'name') currentSortMode = 'hersteller';
+        else if (currentSortMode === 'hersteller') currentSortMode = 'id';
+        else currentSortMode = 'name';
+        
+        const labels = { 'name': 'A-Z Name', 'hersteller': 'A-Z Hersteller', 'id': 'Neuheiten zuerst' };
+        document.getElementById('sort-label').innerText = labels[currentSortMode];
+        renderDBView();
+    }
 
+    function getSortedData() {
+        let data = [...masterData];
+        if (currentSortMode === 'name') {
+            data.sort((a, b) => a.p.localeCompare(b.p));
+        } else if (currentSortMode === 'hersteller') {
+            data.sort((a, b) => a.h.localeCompare(b.h) || a.p.localeCompare(b.p));
+        } else if (currentSortMode === 'id') {
+            data.sort((a, b) => b.id - a.id);
+        }
+        return data;
+    }
+
+    // --- HERSTELLER VORSCHLÄGE ---
+    function updateHerstellerList() {
+        const uniqueH = [...new Set(masterData.map(m => m.h))].filter(h => h !== "Kein Hersteller").sort();
+        document.getElementById('hersteller-list').innerHTML = uniqueH.map(h => `<option value="${h}">`).join('');
+    }
+
+    // --- LISTEN UND SUCHE ---
     function filterProducts(val) {
         const resDiv = document.getElementById('search-results');
         if (val.length < 1) { resDiv.style.display = "none"; return; }
@@ -162,7 +201,7 @@
 
     function toggleFullList() {
         const resDiv = document.getElementById('search-results');
-        (resDiv.style.display === "block") ? closeSearch() : showMatches(masterData);
+        (resDiv.style.display === "block") ? closeSearch() : showMatches(getSortedData());
     }
 
     function showMatches(matches) {
@@ -181,9 +220,9 @@
     function selectProductById(id) {
         const found = masterData.find(m => m.id === id);
         if (found) {
+            if (!cart[currentShop]) cart[currentShop] = [];
             if (!cart[currentShop].find(c => c.id === found.id)) {
                 cart[currentShop].push({...found, qty: 1});
-                cart[currentShop].sort((a, b) => a.p.localeCompare(b.p));
                 saveAll(); renderShopList(); vibrate();
             }
             closeSearch(); document.activeElement.blur(); 
@@ -200,7 +239,9 @@
     }
 
     function renderShopList() {
-        document.getElementById('shopping-list-content').innerHTML = cart[currentShop].map(item => `
+        const list = cart[currentShop] || [];
+        list.sort((a,b) => a.p.localeCompare(b.p));
+        document.getElementById('shopping-list-content').innerHTML = list.map(item => `
             <div class="list-card">
                 <div class="info-area" onclick="searchOnGoogle('${item.h}', '${item.p}', '${item.g}')">
                     <div class="info-hersteller">${item.h}</div>
@@ -216,14 +257,12 @@
         `).join('');
     }
 
-    // --- DATENBANK FUNKTIONEN (NEU MIT EDIT) ---
     function saveToMaster() {
         const p = document.getElementById('dbP').value;
         const editId = document.getElementById('edit-id').value;
         if(!p) return alert("Name fehlt!");
 
         if (editId) {
-            // Update existierender Datensatz
             const index = masterData.findIndex(m => m.id == editId);
             if (index !== -1) {
                 masterData[index].h = document.getElementById('dbH').value || "Kein Hersteller";
@@ -231,7 +270,6 @@
                 masterData[index].g = document.getElementById('dbG').value || "-";
             }
         } else {
-            // Neuer Datensatz
             masterData.push({ 
                 id: Date.now(), 
                 h: document.getElementById('dbH').value || "Kein Hersteller", 
@@ -240,7 +278,7 @@
             });
         }
         
-        sortMasterData(); saveAll(); resetDBForm(); renderDBView();
+        saveAll(); resetDBForm(); updateHerstellerList(); renderDBView();
     }
 
     function editProduct(id) {
@@ -251,7 +289,6 @@
             document.getElementById('dbH').value = item.h;
             document.getElementById('dbP').value = item.p;
             document.getElementById('dbG').value = item.g;
-            
             document.getElementById('db-save-btn').innerText = "Änderung übernehmen";
             document.getElementById('db-save-btn').className = "btn-action btn-orange";
             document.getElementById('db-cancel-btn').style.display = "block";
@@ -270,8 +307,8 @@
     }
 
     function renderDBView() {
-        sortMasterData();
-        document.getElementById('db-view').innerHTML = masterData.map((item) => `
+        const sorted = getSortedData();
+        document.getElementById('db-view').innerHTML = sorted.map((item) => `
             <div class="list-card">
                 <div class="info-area" onclick="searchOnGoogle('${item.h}', '${item.p}', '${item.g}')">
                     <div class="info-hersteller">${item.h}</div>
@@ -289,7 +326,7 @@
     function deleteMasterById(id) {
         if(confirm("Produkt wirklich löschen?")) { 
             masterData = masterData.filter(m => m.id != id); 
-            saveAll(); renderDBView(); 
+            saveAll(); updateHerstellerList(); renderDBView(); 
         }
     }
 
@@ -300,7 +337,7 @@
     function exportJSON() {
         const dataStr = JSON.stringify({master: masterData, cart: cart});
         const blob = new Blob([dataStr], {type: "application/json"});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "einkaufsapp_v32_backup.json"; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "einkaufsapp_v33_backup.json"; a.click();
     }
 
     function importJSON(event) {
@@ -309,7 +346,7 @@
         reader.onload = function(e) {
             const imported = JSON.parse(e.target.result);
             masterData = imported.master || []; cart = imported.cart || {};
-            sortMasterData(); saveAll(); alert("Daten geladen!"); location.reload();
+            saveAll(); alert("Daten geladen!"); location.reload();
         };
         reader.readAsText(file);
     }
