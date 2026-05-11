@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v4.5</title>
+    <title>Einkaufs-Planer Pro v4.8</title>
     <style>
         :root {
             --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
@@ -27,33 +27,27 @@
         .screen { display: none; }
         .active { display: block; }
         
+        .app-header { text-align: center; margin: 20px 0; }
+        .main-emoji { font-size: 60px; display: block; margin-bottom: 10px; }
+        h1 { margin: 0; font-weight: 800; font-size: 28px; }
+
         .header-row { display: flex; align-items: center; padding: 10px 0; position: sticky; top: 0; background: var(--bg-app); z-index: 10; border-bottom: 1px solid #d1d1d6; margin-bottom: 20px; }
         .back-btn { font-size: 32px; color: var(--blue); margin-right: 15px; font-weight: bold; cursor: pointer; }
 
-        /* KARTEN LOGIK MIT VERGRÖSSERTER TREFFERFLÄCHE */
-        .list-card { 
-            background: var(--card); border-radius: 16px; margin-bottom: 12px; 
-            display: flex; align-items: center; overflow: hidden; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative;
+        /* Das exakte 2er Grid aus v4.5 */
+        .discounter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; }
+        .shop-btn { 
+            background: var(--card); border-radius: 20px; height: 140px; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            font-weight: 600; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e5e5e5; 
         }
+        .shop-btn img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 10px; }
 
-        /* Der optische Balken */
-        .color-bar { 
-            width: 12px; align-self: stretch; flex-shrink: 0; 
-            border-right: 1px solid rgba(0,0,0,0.05); position: relative; z-index: 2;
-        }
-
-        /* Die unsichtbare Trefferfläche (Innere Logik) */
-        .color-bar::after {
-            content: ''; position: absolute; top: 0; left: 0;
-            width: 45px; /* Viel breiter für den Finger! */
-            height: 100%; cursor: pointer;
-        }
-
-        .cz1 { background: var(--z1); } .cz2 { background: var(--z2); }
-        .cz3 { background: var(--z3); } .cz4 { background: var(--z4); }
-        .cz0 { background: var(--gray); }
-        
+        /* Karten mit der vergrößerten Trefferfläche */
+        .list-card { background: var(--card); border-radius: 16px; margin-bottom: 12px; display: flex; align-items: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; }
+        .color-bar { width: 12px; align-self: stretch; flex-shrink: 0; border-right: 1px solid rgba(0,0,0,0.05); position: relative; z-index: 2; }
+        .color-bar::after { content: ''; position: absolute; top: 0; left: 0; width: 45px; height: 100%; cursor: pointer; }
+        .cz1 { background: var(--z1); } .cz2 { background: var(--z2); } .cz3 { background: var(--z3); } .cz4 { background: var(--z4); } .cz0 { background: var(--gray); }
         .checked { opacity: 0.3 !important; }
 
         .info-area { flex: 1; padding: 12px 12px 12px 15px; min-width: 0; cursor: pointer; z-index: 1; }
@@ -88,13 +82,19 @@
 <body>
 
 <div id="home" class="screen active">
-    <div style="text-align:center; margin:20px 0;"><span style="font-size:60px;">🛒</span><h1>Einkaufsapp</h1></div>
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin:25px 0;">
-        <div style="background:white; border-radius:20px; height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:600; border:1px solid #e5e5e5;" onclick="goShop('Aldi')"><img src="aldi.png" style="width:50px; margin-bottom:8px;">Aldi</div>
-        <div style="background:white; border-radius:20px; height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:600; border:1px solid #e5e5e5;" onclick="goShop('Edeka')"><img src="edeka.png" style="width:50px; margin-bottom:8px;">Edeka</div>
-        <div style="background:white; border-radius:20px; height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:600; border:1px solid #e5e5e5;" onclick="goShop('Penny')"><img src="penny.png" style="width:50px; margin-bottom:8px;">Penny</div>
-        <div style="background:white; border-radius:20px; height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:600; border:1px solid #e5e5e5;" onclick="goShop('Rewe')"><img src="rewe.png" style="width:50px; margin-bottom:8px;">Rewe</div>
+    <div class="app-header">
+        <span class="main-emoji">🛒</span>
+        <h1>Einkaufsapp</h1>
     </div>
+    
+    <div class="discounter-grid">
+        <div class="shop-btn" onclick="vibrate(); goShop('Aldi')"><img src="aldi.png">Aldi</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Edeka')"><img src="edeka.png">Edeka</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Penny')"><img src="penny.png">Penny</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Rewe')"><img src="rewe.png">Rewe</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('DM')"><img src="dm.png">DM</div>
+    </div>
+
     <button class="btn-action" onclick="vibrate(); goScreen('db')">⚙️ Stammdaten</button>
     <button class="btn-action" style="background:#8e8e93" onclick="exportJSON()">📥 Backup (JSON)</button>
     <button class="btn-action" style="background:#8e8e93" onclick="document.getElementById('importFile').click()">📤 Import (JSON)</button>
@@ -132,7 +132,13 @@
     </select>
     <button id="db-save-btn" class="btn-action btn-blue" onclick="saveToMaster()">Speichern</button>
     <button id="db-cancel-btn" class="btn-action" style="display:none; background:#8e8e93" onclick="resetDBForm()">Abbrechen</button>
-    <div class="sort-row"><h3>Bestandsliste</h3><div style="display:flex; align-items:center; gap:8px;"><span id="sort-label" class="sort-indicator">A-Z Name</span><button class="btn-sort" onclick="cycleSort()">⇅ Sortieren</button></div></div>
+    <div class="sort-row">
+        <h3>Bestandsliste</h3>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span id="sort-label" class="sort-indicator">A-Z Name</span>
+            <button class="btn-sort" onclick="cycleSort()">⇅ Sortieren</button>
+        </div>
+    </div>
     <div id="db-view"></div>
 </div>
 
@@ -276,7 +282,14 @@
     function toggleHerstellerList() { filterHersteller(document.getElementById('dbH').value); }
     function resetDBForm() { document.getElementById('edit-id').value=""; document.getElementById('dbH').value=""; document.getElementById('dbP').value=""; document.getElementById('dbG').value=""; document.getElementById('dbZ').value="0"; document.getElementById('db-save-btn').innerText="Speichern"; document.getElementById('db-cancel-btn').style.display="none"; }
     function deleteMasterById(id) { if(confirm("Löschen?")) { masterData = masterData.filter(m => m.id != id); saveAll(); renderDBView(); } }
-    function goShop(shop) { currentShop = shop; document.getElementById('current-shop-title').innerText = shop; if(!cart[currentShop]) cart[currentShop] = []; goScreen('list'); }
+    
+    function goShop(shop) { 
+        currentShop = shop; 
+        document.getElementById('current-shop-title').innerText = shop; 
+        if(!cart[currentShop]) cart[currentShop] = []; 
+        goScreen('list'); 
+    }
+    
     function changeQty(id, delta) { const item = cart[currentShop].find(c => c.id == id); if(item) { item.qty = parseInt(item.qty) + delta; if(item.qty <= 0) cart[currentShop] = cart[currentShop].filter(c => c.id != id); saveAll(); renderShopList(); } }
     function clearCurrentList() { if(confirm("Leeren?")) { cart[currentShop] = []; checkedItems[currentShop] = []; saveAll(); renderShopList(); } }
     function saveAll() { localStorage.setItem('shop_master', JSON.stringify(masterData)); localStorage.setItem('shop_cart', JSON.stringify(cart)); localStorage.setItem('shop_checked', JSON.stringify(checkedItems)); }
