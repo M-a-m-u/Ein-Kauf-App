@@ -3,30 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v4.4</title>
+    <title>Einkaufs-Planer Pro v4.5</title>
     <style>
         :root {
-            --bg-desktop: #d1d1d6; /* Hintergrund für PC */
-            --bg-app: #f2f2f7;    /* Hintergrund in der App */
+            --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
             --card: #ffffff; --blue: #007aff; --red: #ff3b30; --gray: #8e8e93; --orange: #ff9500; --green: #34c759;
             --z1: #34c759; --z2: #ffcc00; --z3: #a2845e; --z4: #5ac8fa;
         }
 
-        /* PC-Optimierung: Zentrierung und Breitenbegrenzung */
         html { background-color: var(--bg-desktop); }
-        
         body { 
-            font-family: -apple-system, sans-serif; 
-            background: var(--bg-app); 
-            margin: 0 auto; 
-            padding: env(safe-area-inset-top) 15px 100px 15px; 
+            font-family: -apple-system, sans-serif; background: var(--bg-app); 
+            margin: 0 auto; padding: env(safe-area-inset-top) 15px 100px 15px; 
+            max-width: 480px; min-height: 100vh; box-shadow: 0 0 40px rgba(0,0,0,0.1);
             -webkit-tap-highlight-color: transparent;
-            max-width: 480px; /* Begrenzung für PC */
-            min-height: 100vh;
-            box-shadow: 0 0 40px rgba(0,0,0,0.1); /* Schicker Schatten am PC */
         }
 
-        /* Mobile-Reset: Auf dem iPhone soll kein Schatten und volle Breite sein */
         @media (max-width: 500px) {
             body { max-width: none; box-shadow: none; }
             html { background-color: var(--bg-app); }
@@ -38,19 +30,38 @@
         .header-row { display: flex; align-items: center; padding: 10px 0; position: sticky; top: 0; background: var(--bg-app); z-index: 10; border-bottom: 1px solid #d1d1d6; margin-bottom: 20px; }
         .back-btn { font-size: 32px; color: var(--blue); margin-right: 15px; font-weight: bold; cursor: pointer; }
 
-        .list-card { background: var(--card); border-radius: 16px; margin-bottom: 12px; display: flex; align-items: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); transition: opacity 0.3s; }
-        .color-bar { width: 12px; align-self: stretch; flex-shrink: 0; cursor: pointer; border-right: 1px solid rgba(0,0,0,0.05); }
+        /* KARTEN LOGIK MIT VERGRÖSSERTER TREFFERFLÄCHE */
+        .list-card { 
+            background: var(--card); border-radius: 16px; margin-bottom: 12px; 
+            display: flex; align-items: center; overflow: hidden; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative;
+        }
+
+        /* Der optische Balken */
+        .color-bar { 
+            width: 12px; align-self: stretch; flex-shrink: 0; 
+            border-right: 1px solid rgba(0,0,0,0.05); position: relative; z-index: 2;
+        }
+
+        /* Die unsichtbare Trefferfläche (Innere Logik) */
+        .color-bar::after {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 45px; /* Viel breiter für den Finger! */
+            height: 100%; cursor: pointer;
+        }
+
         .cz1 { background: var(--z1); } .cz2 { background: var(--z2); }
         .cz3 { background: var(--z3); } .cz4 { background: var(--z4); }
         .cz0 { background: var(--gray); }
         
         .checked { opacity: 0.3 !important; }
-        .info-area { flex: 1; padding: 12px; min-width: 0; cursor: pointer; }
+
+        .info-area { flex: 1; padding: 12px 12px 12px 15px; min-width: 0; cursor: pointer; z-index: 1; }
         .info-hersteller { font-size: 11px; color: var(--gray); text-transform: uppercase; }
         .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; color: #000; }
         .info-gewicht { font-size: 13px; color: #3a3a3c; margin-top: 2px; }
         
-        .stepper { display: flex; align-items: center; background: #fff; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; margin-right: 10px; }
+        .stepper { display: flex; align-items: center; background: #fff; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; margin-right: 10px; z-index: 3; }
         .stepper-btn { width: 35px; height: 40px; border: none; background: #fff; color: var(--blue); font-size: 20px; font-weight: bold; }
         .stepper-val { width: 30px; text-align: center; font-size: 16px; font-weight: bold; }
 
@@ -98,7 +109,7 @@
     </div>
     <div class="search-container">
         <div class="search-wrapper" onclick="toggleFullList()">
-            <input type="text" id="db-search" placeholder="Produkt hinzufügen..." oninput="filterProducts(this.value)" autocomplete="off">
+            <input type="text" id="db-search" placeholder="Hinzufügen..." oninput="filterProducts(this.value)" autocomplete="off">
             <span class="list-toggle">▼</span>
         </div>
         <div id="search-results" class="custom-dropdown"></div>
@@ -121,26 +132,18 @@
     </select>
     <button id="db-save-btn" class="btn-action btn-blue" onclick="saveToMaster()">Speichern</button>
     <button id="db-cancel-btn" class="btn-action" style="display:none; background:#8e8e93" onclick="resetDBForm()">Abbrechen</button>
-    
-    <div class="sort-row">
-        <h3>Bestandsliste</h3>
-        <div style="display:flex; align-items:center; gap:8px;">
-            <span id="sort-label" class="sort-indicator">A-Z Name</span>
-            <button class="btn-sort" onclick="cycleSort()">⇅ Sortieren</button>
-        </div>
-    </div>
+    <div class="sort-row"><h3>Bestandsliste</h3><div style="display:flex; align-items:center; gap:8px;"><span id="sort-label" class="sort-indicator">A-Z Name</span><button class="btn-sort" onclick="cycleSort()">⇅ Sortieren</button></div></div>
     <div id="db-view"></div>
 </div>
 
 <script>
-    // JavaScript bleibt EXAKT GLEICH wie in v4.3
     let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
     let checkedItems = JSON.parse(localStorage.getItem('shop_checked')) || {};
     let currentSortMode = 'name';
     let currentShop = "";
 
-    function vibrate() { if (navigator.vibrate) navigator.vibrate(15); }
+    function vibrate() { if (navigator && navigator.vibrate) navigator.vibrate(15); }
 
     function searchOnGoogle(h, p, g) {
         vibrate();
@@ -278,7 +281,7 @@
     function clearCurrentList() { if(confirm("Leeren?")) { cart[currentShop] = []; checkedItems[currentShop] = []; saveAll(); renderShopList(); } }
     function saveAll() { localStorage.setItem('shop_master', JSON.stringify(masterData)); localStorage.setItem('shop_cart', JSON.stringify(cart)); localStorage.setItem('shop_checked', JSON.stringify(checkedItems)); }
     function exportJSON() { const dataStr = JSON.stringify({master: masterData, cart: cart}, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); }
-    function importJSON(event) { const file = event.target.files[0]; const reader = new FileReader(); reader.onload = function(e) { const data = JSON.parse(e.target.result); masterData = data.master; cart = data.cart; saveAll(); location.reload(); }; reader.readAsText(file); }
+    function importJSON(event) { const file = event.target.files[0]; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); masterData = data.master; cart = data.cart; saveAll(); location.reload(); } catch(err) { alert("Formatfehler."); } }; reader.readAsText(file); }
 </script>
 </body>
 </html>
