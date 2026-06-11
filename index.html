@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v4.9</title>
+    <title>Einkaufs-Planer Pro v5.2</title>
     <style>
         :root {
             --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
@@ -44,7 +44,8 @@
         .shop-btn img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 10px; }
 
         /* Karten Logik */
-        .list-card { background: var(--card); border-radius: 16px; margin-bottom: 12px; display: flex; align-items: center; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; }
+        .list-card { background: var(--card); border-radius: 16px; margin-bottom: 12px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; }
+        .card-main { display: flex; align-items: center; width: 100%; }
         .color-bar { width: 12px; align-self: stretch; flex-shrink: 0; cursor: pointer; border-right: 1px solid rgba(0,0,0,0.05); position: relative; z-index: 2; }
         .color-bar::after { content: ''; position: absolute; top: 0; left: 0; width: 45px; height: 100%; cursor: pointer; }
         .cz1 { background: var(--z1); } .cz2 { background: var(--z2); } .cz3 { background: var(--z3); } .cz4 { background: var(--z4); } .cz0 { background: var(--gray); }
@@ -57,6 +58,13 @@
         .stepper-btn { width: 35px; height: 40px; border: none; background: #fff; color: var(--blue); font-size: 20px; font-weight: bold; }
         .stepper-val { width: 30px; text-align: center; font-size: 16px; font-weight: bold; }
 
+        /* Ziehharmonika Pfeil */
+        .accordion-toggle { color: var(--blue); font-size: 18px; padding: 10px; cursor: pointer; margin-right: 5px; z-index: 3; user-select: none; }
+        .accordion-content { display: none; background: #f8f8fa; width: 100%; border-top: 1px solid #e5e5ea; padding: 10px 15px; box-sizing: border-box; }
+        .mhd-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid #efeef4; }
+        .mhd-item:last-child { border-bottom: none; }
+        .mhd-del-btn { color: var(--red); font-weight: bold; border: none; background: none; padding: 5px 10px; cursor: pointer; }
+
         /* Formular Elemente */
         input[type="text"], input[type="number"], select { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; }
         
@@ -64,9 +72,9 @@
         .btn-blue { background: var(--blue); }
         .btn-orange { background: var(--orange); }
         
-        /* Neue JSON Button Reihe */
+        /* JSON Button Reihe */
         .json-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-        .btn-json { background: #8e8e93; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .btn-json { background: #8e8e93; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
 
         .search-container { position: relative; background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px; }
         .custom-dropdown { background: white; border-radius: 12px; max-height: 250px; overflow-y: auto; box-shadow: 0 8px 20px rgba(0,0,0,0.15); margin-top: 5px; display: none; position: absolute; width: 100%; left: 0; z-index: 100; }
@@ -91,17 +99,18 @@
         <div class="shop-btn" onclick="vibrate(); goShop('Penny')"><img src="penny.png">Penny</div>
         <div class="shop-btn" onclick="vibrate(); goShop('Rewe')"><img src="rewe.png">Rewe</div>
         <div class="shop-btn" onclick="vibrate(); goShop('DM')"><img src="dm.png">DM</div>
+        <div class="shop-btn" onclick="vibrate(); goShop('Bestand')"><img src="bestand.png">Bestand</div>        
     </div>
 
     <button class="btn-action" onclick="vibrate(); goScreen('db')">⚙️ Stammdaten verwalten</button>
 
     <div class="json-row">
         <button class="btn-json" onclick="vibrate(); exportJSON()">
-            <span>📥 Backup</span>
+            <span>📥 Backup (JSON)</span>
             <span style="font-size:10px; font-weight:400;">Daten sichern</span>
         </button>
         <button class="btn-json" onclick="vibrate(); document.getElementById('importFile').click()">
-            <span>📤 Import</span>
+            <span>📤 Import (JSON)</span>
             <span style="font-size:10px; font-weight:400;">Daten laden</span>
         </button>
     </div>
@@ -164,6 +173,14 @@
         window.open(`https://www.google.com/search?q=${query}&tbm=isch`, '_blank');
     }
 
+    // Hilfsfunktion zur Datum-Sortierung (Format: TT.MM.JJJJ)
+    function parseDate(dStr) {
+        if(!dStr) return new Date(2999, 11, 31);
+        const parts = dStr.split('.');
+        if(parts.length !== 3) return new Date(2999, 11, 31);
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+
     function goScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
@@ -180,6 +197,19 @@
         saveAll(); renderShopList(); vibrate();
     }
 
+    function toggleAccordion(id) {
+        vibrate();
+        const el = document.getElementById(`accordion-${id}`);
+        const arrow = document.getElementById(`arrow-${id}`);
+        if(el.style.display === "block") {
+            el.style.display = "none";
+            arrow.innerText = "▼";
+        } else {
+            el.style.display = "block";
+            arrow.innerText = "▲";
+        }
+    }
+
     function renderShopList() {
         const list = cart[currentShop] || [];
         const checked = checkedItems[currentShop] || [];
@@ -188,15 +218,43 @@
             const bDone = checked.includes(b.id) ? 1 : 0;
             return aDone - bDone || (a.z || 99) - (b.z || 99) || a.p.localeCompare(b.p);
         });
-        document.getElementById('shopping-list-content').innerHTML = list.map(item => `
-            <div class="list-card ${checked.includes(item.id) ? 'checked' : ''}">
-                <div class="color-bar cz${item.z || '0'}" onclick="toggleCheck(${item.id})"></div>
-                <div class="info-area" onclick="searchOnGoogle('${item.h}','${item.p}','${item.g}')">
-                    <div class="info-hersteller">${item.h}</div>
-                    <div class="info-name">${item.p}</div>
-                </div>
-                <div class="stepper"><button class="stepper-btn" onclick="changeQty(${item.id},-1)">–</button><div class="stepper-val">${item.qty}</div><button class="stepper-btn" onclick="changeQty(${item.id},1)">+</button></div>
-            </div>`).join('');
+
+        const container = document.getElementById('shopping-list-content');
+        container.innerHTML = list.map(item => {
+            const isChecked = checked.includes(item.id);
+            const showAccordion = (currentShop === 'Bestand' && item.dates && item.dates.length > 0);
+            
+            // Render Untereinträge für das Akkordeon
+            let accordionHtml = "";
+            if(showAccordion) {
+                const sortedDates = [...item.dates].sort((x, y) => parseDate(x.mhd) - parseDate(y.mhd));
+                accordionHtml = `<div id="accordion-${item.id}" class="accordion-content">` + 
+                    sortedDates.map(d => `
+                        <div class="mhd-item">
+                            <span>📅 ${d.mhd}</span>
+                            <button class="mhd-del-btn" onclick="removeSpecificMHD(${item.id}, '${d.uid}')">✕</button>
+                        </div>
+                    `).join('') + `</div>`;
+            }
+
+            return `
+                <div class="list-card ${isChecked ? 'checked' : ''}">
+                    <div class="card-main">
+                        <div class="color-bar cz${item.z || '0'}" onclick="toggleCheck(${item.id})"></div>
+                        <div class="info-area" onclick="searchOnGoogle('${item.h}','${item.p}','${item.g}')">
+                            <div class="info-hersteller">${item.h}</div>
+                            <div class="info-name">${item.p}</div>
+                        </div>
+                        ${currentShop === 'Bestand' ? `<div id="arrow-${item.id}" class="accordion-toggle" onclick="toggleAccordion(${item.id})">▼</div>` : ''}
+                        <div class="stepper">
+                            <button class="stepper-btn" onclick="changeQty(${item.id},-1)">–</button>
+                            <div class="stepper-val">${item.qty}</div>
+                            <button class="stepper-btn" onclick="changeQty(${item.id},1)">+</button>
+                        </div>
+                    </div>
+                    ${accordionHtml}
+                </div>`;
+        }).join('');
     }
 
     function cycleSort() {
@@ -215,12 +273,14 @@
         else data.sort((a, b) => b.id - a.id);
         document.getElementById('db-view').innerHTML = data.map(item => `
             <div class="list-card">
-                <div class="color-bar cz${item.z || '0'}"></div>
-                <div class="info-area"><b>${item.p}</b><br><small>${item.h}</small></div>
-                <div class="db-controls">
-                    <button class="db-btn" style="color:var(--green)" onclick="copyProduct(${item.id})">Kopie</button>
-                    <button class="db-btn" style="color:var(--orange)" onclick="editProduct(${item.id})">Edit</button>
-                    <button class="db-btn" style="color:var(--red)" onclick="deleteMasterById(${item.id})">Del</button>
+                <div class="card-main">
+                    <div class="color-bar cz${item.z || '0'}"></div>
+                    <div class="info-area"><b>${item.p}</b><br><small>${item.h}</small></div>
+                    <div class="db-controls">
+                        <button class="db-btn" style="color:var(--green)" onclick="copyProduct(${item.id})">Kopie</button>
+                        <button class="db-btn" style="color:var(--orange)" onclick="editProduct(${item.id})">Edit</button>
+                        <button class="db-btn" style="color:var(--red)" onclick="deleteMasterById(${item.id})">Del</button>
+                    </div>
                 </div>
             </div>`).join('');
     }
@@ -269,14 +329,35 @@
         resDiv.style.display = "block";
         resDiv.innerHTML = matches.map(m => `<div class="dropdown-item" onclick="selectProductById(${m.id})"><b>${m.p}</b> <br><small>${m.h}</small></div>`).join('');
     }
+    
     function selectProductById(id) {
         const found = masterData.find(m => m.id === id);
         if (found) {
             if (!cart[currentShop]) cart[currentShop] = [];
-            if (!cart[currentShop].find(c => c.id === found.id)) cart[currentShop].push({...found, qty: 1});
+            let item = cart[currentShop].find(c => c.id === found.id);
+            
+            if (!item) {
+                item = {...found, qty: 0, dates: []};
+                cart[currentShop].push(item);
+            }
+            
+            if (currentShop === 'Bestand') {
+                const dateInput = prompt("Mindesthaltbarkeitsdatum eingeben (TT.MM.JJJJ):", "");
+                if (dateInput) {
+                    item.qty += 1;
+                    item.dates.push({ uid: Date.now() + Math.random().toString(), mhd: dateInput });
+                } else if (item.qty === 0) {
+                    // Falls abgebrochen und qty noch 0, Eintrag säubern
+                    cart[currentShop] = cart[currentShop].filter(c => c.id !== found.id);
+                }
+            } else {
+                item.qty += 1;
+            }
+            
             saveAll(); renderShopList(); closeSearch(); vibrate();
         }
     }
+    
     function closeSearch() { document.getElementById('db-search').value = ""; document.getElementById('search-results').style.display = "none"; }
     function filterHersteller(val) {
         const resDiv = document.getElementById('hersteller-results');
@@ -289,7 +370,53 @@
     function resetDBForm() { document.getElementById('edit-id').value=""; document.getElementById('dbH').value=""; document.getElementById('dbP').value=""; document.getElementById('dbG').value=""; document.getElementById('dbZ').value="0"; document.getElementById('db-save-btn').innerText="Speichern"; document.getElementById('db-cancel-btn').style.display="none"; }
     function deleteMasterById(id) { if(confirm("Löschen?")) { masterData = masterData.filter(m => m.id != id); saveAll(); renderDBView(); } }
     function goShop(shop) { currentShop = shop; document.getElementById('current-shop-title').innerText = shop; if(!cart[currentShop]) cart[currentShop] = []; goScreen('list'); }
-    function changeQty(id, delta) { const item = cart[currentShop].find(c => c.id == id); if(item) { item.qty = parseInt(item.qty) + delta; if(item.qty <= 0) cart[currentShop] = cart[currentShop].filter(c => c.id != id); saveAll(); renderShopList(); } }
+    
+    function changeQty(id, delta) {
+        const item = cart[currentShop].find(c => c.id == id);
+        if (!item) return;
+
+        if (delta > 0) {
+            // Produkt hinzufügen
+            if (currentShop === 'Bestand') {
+                const dateInput = prompt("Mindesthaltbarkeitsdatum eingeben (TT.MM.JJJJ):", "");
+                if (dateInput) {
+                    item.qty = parseInt(item.qty) + 1;
+                    if(!item.dates) item.dates = [];
+                    item.dates.push({ uid: Date.now() + Math.random().toString(), mhd: dateInput });
+                }
+            } else {
+                item.qty = parseInt(item.qty) + 1;
+            }
+        } else {
+            // Produkt reduzieren (Entnahme)
+            if (currentShop === 'Bestand' && item.dates && item.dates.length > 0) {
+                // Automatisch das Produkt mit dem KÜRZESTEN MHD finden und entfernen
+                item.dates.sort((x, y) => parseDate(x.mhd) - parseDate(y.mhd));
+                item.dates.shift(); // Entfernt das erste Element (kürzestes Datum)
+            }
+            item.qty = parseInt(item.qty) - 1;
+        }
+
+        if (item.qty <= 0) {
+            cart[currentShop] = cart[currentShop].filter(c => c.id != id);
+        }
+        saveAll(); renderShopList();
+    }
+
+    // Gezielte Entnahme eines bestimmten Datums aus dem Akkordeon
+    function removeSpecificMHD(itemId, uid) {
+        vibrate();
+        const item = cart[currentShop].find(c => c.id == itemId);
+        if (item && item.dates) {
+            item.dates = item.dates.filter(d => d.uid !== uid);
+            item.qty = item.dates.length;
+            if (item.qty <= 0) {
+                cart[currentShop] = cart[currentShop].filter(c => c.id != itemId);
+            }
+            saveAll(); renderShopList();
+        }
+    }
+
     function clearCurrentList() { if(confirm("Leeren?")) { cart[currentShop] = []; checkedItems[currentShop] = []; saveAll(); renderShopList(); } }
     function saveAll() { localStorage.setItem('shop_master', JSON.stringify(masterData)); localStorage.setItem('shop_cart', JSON.stringify(cart)); localStorage.setItem('shop_checked', JSON.stringify(checkedItems)); }
     function exportJSON() { const dataStr = JSON.stringify({master: masterData, cart: cart}, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); }
