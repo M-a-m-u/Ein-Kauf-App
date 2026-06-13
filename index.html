@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Plan Pro v5.4</title>
+    <title>Einkaufs-Planer Pro v5.5</title>
     <style>
         :root {
             --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
@@ -52,7 +52,7 @@
         .checked { opacity: 0.3 !important; }
         .info-area { flex: 1; padding: 12px 12px 12px 15px; min-width: 0; cursor: pointer; z-index: 1; }
         .info-hersteller { font-size: 11px; color: var(--gray); text-transform: uppercase; }
-        .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; color: #000; }
+        .info-name { font-size: 17px; font-weight: 700; line-height: 1.2; color: #000; display: flex; align-items: center; gap: 6px; }
         
         .stepper { display: flex; align-items: center; background: #fff; border: 2px solid var(--blue); border-radius: 12px; overflow: hidden; margin-right: 10px; z-index: 3; }
         .stepper-btn { width: 35px; height: 40px; border: none; background: #fff; color: var(--blue); font-size: 20px; font-weight: bold; }
@@ -64,6 +64,11 @@
         .mhd-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; border-bottom: 1px solid #efeef4; }
         .mhd-item:last-child { border-bottom: none; }
         .mhd-del-btn { color: var(--red); font-weight: bold; border: none; background: none; padding: 5px 10px; cursor: pointer; }
+        
+        /* Alarm-Stile */
+        .mhd-danger { color: var(--red); font-weight: 700; }
+        .alarm-indicator { font-size: 16px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
 
         /* Formular Elemente */
         input[type="text"], input[type="number"], select, input[type="date"] { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box; margin-bottom: 10px; font-family: -apple-system, sans-serif; }
@@ -125,11 +130,9 @@
     <div class="json-row">
         <button class="btn-json" onclick="vibrate(); exportJSON()">
             <span>📥 Backup (JSON)</span>
-            <span style="font-size:10px; font-weight:400;">Daten sichern</span>
         </button>
         <button class="btn-json" onclick="vibrate(); document.getElementById('importFile').click()">
             <span>📤 Import (JSON)</span>
-            <span style="font-size:10px; font-weight:400;">Daten laden</span>
         </button>
     </div>
     <input type="file" id="importFile" style="display:none" onchange="importJSON(event)">
@@ -139,7 +142,8 @@
     <div class="header-row">
         <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
         <h2 id="current-shop-title" style="margin:0;">Laden</h2>
-        <button style="margin-left:auto; color:var(--red); border:none; background:none; font-weight:600;" onclick="clearCurrentList()">Leeren</button>
+        <button id="bestand-sort-btn" style="display:none; margin-left:auto; background:white; border:1px solid var(--blue); color:var(--blue); padding:6px 12px; border-radius:10px; font-weight:bold; font-size:13px;" onclick="cycleBestandSort()">⇅ Sortieren: Zone</button>
+        <button id="list-clear-btn" style="margin-left:auto; color:var(--red); border:none; background:none; font-weight:600;" onclick="clearCurrentList()">Leeren</button>
     </div>
     <div class="search-container">
         <div style="position: relative; display: flex; align-items: center;" onclick="toggleFullList()">
@@ -179,25 +183,12 @@
 <div id="picker-modal" class="modal-overlay">
     <div class="modal-sheet">
         <div class="modal-title" id="modal-product-title">Bestand hinzufügen</div>
-        
-        <div class="modal-row">
-            <label>Menge (Anzahl)</label>
-            <input type="number" id="modal-qty" value="1" min="1" max="99">
-        </div>
-        
+        <div class="modal-row"><label>Menge (Anzahl)</label><input type="number" id="modal-qty" value="1" min="1" max="99"></div>
         <div class="modal-row">
             <label>Mindesthaltbarkeitsdatum?</label>
-            <label class="toggle-switch">
-                <input type="checkbox" id="modal-has-mhd" checked onchange="toggleMHDInput(this.checked)">
-                <span class="slider"></span>
-            </label>
+            <label class="toggle-switch"><input type="checkbox" id="modal-has-mhd" checked onchange="toggleMHDInput(this.checked)"><span class="slider"></span></label>
         </div>
-        
-        <div class="modal-row" id="modal-mhd-container">
-            <label>Ablaufdatum</label>
-            <input type="date" id="modal-date">
-        </div>
-        
+        <div class="modal-row" id="modal-mhd-container"><label>Ablaufdatum</label><input type="date" id="modal-date"></div>
         <div class="modal-buttons">
             <button style="background:#e5e5ea; color:black;" onclick="closePickerModal()">Abbrechen</button>
             <button style="background:var(--blue); color:white;" onclick="confirmPickerSelection()">Hinzufügen</button>
@@ -210,8 +201,9 @@
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
     let checkedItems = JSON.parse(localStorage.getItem('shop_checked')) || {};
     let currentSortMode = 'name';
+    let currentBestandSortMode = 'zone'; // Standard für Bestand: Zone & Hersteller
     let currentShop = "";
-    let pendingItemRef = null; // Speichert das Produkt während der Picker offen ist
+    let pendingItemRef = null;
 
     function vibrate() { if (navigator && navigator.vibrate) navigator.vibrate(15); }
 
@@ -232,15 +224,65 @@
         if(!isoString) return "-";
         const parts = isoString.split('-');
         if(parts.length !== 3) return "-";
-        return `${parts[2]}.${parts[1]}.${parts[0]}`; // Macht aus YYYY-MM-DD -> DD.MM.YYYY
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+
+    // Alarm-Logik: Prüft, ob ein Datum die zonenabhängige Warnzeit unterschreitet
+    function checkMHDAlarm(mhdStr, zone) {
+        if (!mhdStr || mhdStr === "-") return false;
+        const mhdDate = parseDate(mhdStr);
+        if (mhdDate.getFullYear() === 2999) return false;
+        
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        mhdDate.setHours(0,0,0,0);
+        
+        const diffTime = mhdDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const z = parseInt(zone) || 0;
+        if (z === 3 || z === 4) return diffDays <= 30; // Zone 3 & 4: 1 Monat Warnzeit
+        if (z === 2) return diffDays <= 7;            // Zone 2: 1 Woche Warnzeit
+        return false;                                  // Zone 1: Kein Alarm
+    }
+
+    // Findet das am nächsten liegende MHD eines Produkts heraus
+    function getShortestMHD(item) {
+        if (!item.dates || item.dates.length === 0) return new Date(2999, 11, 31);
+        const validDates = item.dates.map(d => parseDate(d.mhd));
+        return new Date(Math.min(...validDates));
     }
 
     function goScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
         if(id === 'db') renderDBView();
-        if(id === 'list') { renderShopList(); closeSearch(); }
+        if(id === 'list') {
+            // Sortier-Button oben rechts steuern
+            if (currentShop === 'Bestand') {
+                document.getElementById('bestand-sort-btn').style.display = "block";
+                document.getElementById('list-clear-btn').style.display = "none";
+                updateSortButtonLabel();
+            } else {
+                document.getElementById('bestand-sort-btn').style.display = "none";
+                document.getElementById('list-clear-btn').style.display = "block";
+            }
+            renderShopList(); closeSearch(); 
+        }
         window.scrollTo(0,0);
+    }
+
+    function cycleBestandSort() {
+        vibrate();
+        const modes = ['zone', 'mhd', 'name'];
+        currentBestandSortMode = modes[(modes.indexOf(currentBestandSortMode) + 1) % modes.length];
+        updateSortButtonLabel();
+        renderShopList();
+    }
+
+    function updateSortButtonLabel() {
+        const labels = { 'zone': '⇅ Sortieren: Zone', 'mhd': '⇅ Sortieren: MHD', 'name': '⇅ Sortieren: A-Z' };
+        document.getElementById('bestand-sort-btn').innerText = labels[currentBestandSortMode];
     }
 
     function toggleCheck(id) {
@@ -267,27 +309,48 @@
     function renderShopList() {
         const list = cart[currentShop] || [];
         const checked = checkedItems[currentShop] || [];
-        list.sort((a, b) => {
-            const aDone = checked.includes(a.id) ? 1 : 0;
-            const bDone = checked.includes(b.id) ? 1 : 0;
-            return aDone - bDone || (a.z || 99) - (b.z || 99) || a.p.localeCompare(b.p);
-        });
+        
+        // Verzweigung der Sortierung
+        if (currentShop === 'Bestand') {
+            if (currentBestandSortMode === 'zone') {
+                // Erst nach Zone, dann alphabetisch nach Hersteller, dann nach Name
+                list.sort((a, b) => (a.z || 99) - (b.z || 99) || a.h.localeCompare(b.h) || a.p.localeCompare(b.p));
+            } else if (currentBestandSortMode === 'mhd') {
+                // Das am nächsten ablaufende Produkt ganz nach oben schieben
+                list.sort((a, b) => getShortestMHD(a) - getShortestMHD(b));
+            } else {
+                // Rein alphabetisch nach Produktname
+                list.sort((a, b) => a.p.localeCompare(b.p));
+            }
+        } else {
+            // Klassischer Modus für die Discounter (Abgehakte nach unten, dann nach Zone)
+            list.sort((a, b) => {
+                const aDone = checked.includes(a.id) ? 1 : 0;
+                const bDone = checked.includes(b.id) ? 1 : 0;
+                return aDone - bDone || (a.z || 99) - (b.z || 99) || a.p.localeCompare(b.p);
+            });
+        }
 
         const container = document.getElementById('shopping-list-content');
         container.innerHTML = list.map(item => {
             const isChecked = checked.includes(item.id);
             const showAccordion = (currentShop === 'Bestand' && item.dates && item.dates.length > 0);
             
+            let hasAnyAlarm = false;
             let accordionHtml = "";
+            
             if(showAccordion) {
                 const sortedDates = [...item.dates].sort((x, y) => parseDate(x.mhd) - parseDate(y.mhd));
                 accordionHtml = `<div id="accordion-${item.id}" class="accordion-content">` + 
-                    sortedDates.map(d => `
-                        <div class="mhd-item">
-                            <span>📅 ${d.mhd}</span>
-                            <button class="mhd-del-btn" onclick="removeSpecificMHD(${item.id}, '${d.uid}')">✕</button>
-                        </div>
-                    `).join('') + `</div>`;
+                    sortedDates.map(d => {
+                        const isAlarm = checkMHDAlarm(d.mhd, item.z);
+                        if(isAlarm) hasAnyAlarm = true; // Markiert, dass die Hauptzeile ein Warn-Dreieck bekommt
+                        return `
+                            <div class="mhd-item ${isAlarm ? 'mhd-danger' : ''}">
+                                <span>📅 ${d.mhd} ${isAlarm ? '⚠️' : ''}</span>
+                                <button class="mhd-del-btn" onclick="removeSpecificMHD(${item.id}, '${d.uid}')">✕</button>
+                            </div>`;
+                    }).join('') + `</div>`;
             }
 
             return `
@@ -296,7 +359,7 @@
                         <div class="color-bar cz${item.z || '0'}" onclick="toggleCheck(${item.id})"></div>
                         <div class="info-area" onclick="searchOnGoogle('${item.h}','${item.p}','${item.g}')">
                             <div class="info-hersteller">${item.h}</div>
-                            <div class="info-name">${item.p}</div>
+                            <div class="info-name">${item.p} ${hasAnyAlarm ? '<span class="alarm-indicator">⚠️</span>' : ''}</div>
                         </div>
                         ${currentShop === 'Bestand' ? `<div id="arrow-${item.id}" class="accordion-toggle" onclick="toggleAccordion(${item.id})">▼</div>` : ''}
                         <div class="stepper">
@@ -383,24 +446,19 @@
         resDiv.innerHTML = matches.map(m => `<div class="dropdown-item" onclick="selectProductById(${m.id})"><b>${m.p}</b> <br><small>${m.h}</small></div>`).join('');
     }
     
-    /* MODAL PICKER LOGIK */
     function openPickerModal(item) {
         pendingItemRef = item;
         document.getElementById('modal-product-title').innerText = `${item.p} aufstocken`;
         document.getElementById('modal-qty').value = "1";
-        
-        // Setzt das heutige Datum als Standardwert im Picker
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('modal-date').value = today;
         document.getElementById('modal-has-mhd').checked = true;
         document.getElementById('modal-mhd-container').style.display = "flex";
-        
         document.getElementById('picker-modal').style.display = "flex";
     }
 
     function closePickerModal() {
         document.getElementById('picker-modal').style.display = "none";
-        // Falls das Produkt neu hinzugefügt wurde, aber abgebrochen wird, säubern
         if (pendingItemRef && pendingItemRef.qty === 0) {
             cart[currentShop] = cart[currentShop].filter(c => c.id !== pendingItemRef.id);
         }
@@ -419,7 +477,6 @@
         const count = parseInt(document.getElementById('modal-qty').value) || 1;
         const hasMHD = document.getElementById('modal-has-mhd').checked;
         const rawDate = document.getElementById('modal-date').value;
-        
         const finalMHDStr = hasMHD ? formatDateToDE(rawDate) : "-";
 
         if(!pendingItemRef.dates) pendingItemRef.dates = [];
