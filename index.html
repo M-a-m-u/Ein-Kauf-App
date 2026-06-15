@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v5.5</title>
+    <title>Einkaufs-Planer Pro v5.7</title>
     <style>
         :root {
             --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
@@ -31,8 +31,13 @@
         .main-emoji { font-size: 60px; display: block; margin-bottom: 10px; }
         h1 { margin: 0; font-weight: 800; font-size: 28px; }
 
-        .header-row { display: flex; align-items: center; padding: 10px 0; position: sticky; top: 0; background: var(--bg-app); z-index: 10; border-bottom: 1px solid #d1d1d6; margin-bottom: 20px; }
-        .back-btn { font-size: 32px; color: var(--blue); margin-right: 15px; font-weight: bold; cursor: pointer; }
+        .header-row { display: flex; align-items: center; padding: 10px 0; position: sticky; top: 0; background: var(--bg-app); z-index: 10; border-bottom: 1px solid #d1d1d6; margin-bottom: 15px; }
+        .back-btn { font-size: 32px; color: var(--blue); margin-right: 12px; font-weight: bold; cursor: pointer; line-height: 1; }
+        
+        /* Action Buttons im Header */
+        .header-actions { display: flex; gap: 10px; margin-left: auto; align-items: center; }
+        .icon-btn { background: white; border: 1px solid #d1d1d6; font-size: 18px; padding: 6px 10px; border-radius: 10px; cursor: pointer; user-select: none; }
+        .icon-btn.active-toggle { background: var(--blue); color: white; border-color: var(--blue); }
 
         /* Grids */
         .discounter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
@@ -75,13 +80,16 @@
         
         .btn-action { width: 100%; background: #3a3a3c; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; margin-top: 10px; font-size: 16px; }
         .btn-blue { background: var(--blue); }
-        .btn-orange { background: var(--orange); }
         
         /* JSON Button Reihe */
         .json-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
         .btn-json { background: #8e8e93; color: white; border: none; padding: 16px; border-radius: 15px; font-weight: 600; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
 
-        .search-container { position: relative; background:#e9e9eb; padding:15px; border-radius:15px; margin-bottom:20px; }
+        /* Dynamisch ein-/ausklappbare Container */
+        .toggle-container { display: none; margin-bottom: 15px; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .search-container { position: relative; background:#e9e9eb; padding:12px; border-radius:15px; }
         .custom-dropdown { background: white; border-radius: 12px; max-height: 250px; overflow-y: auto; box-shadow: 0 8px 20px rgba(0,0,0,0.15); margin-top: 5px; display: none; position: absolute; width: 100%; left: 0; z-index: 100; }
         .dropdown-item { padding: 15px; border-bottom: 1px solid #eee; font-size: 16px; }
         .db-controls { display: flex; flex-direction: column; gap: 2px; margin-right: 8px; }
@@ -89,7 +97,10 @@
         .sort-row { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 10px 0; }
         .sort-indicator { font-size: 12px; color: var(--gray); font-weight: 600; background: #e5e5ea; padding: 4px 10px; border-radius: 10px; }
 
-        /* Professioneller iOS Picker Dialog (Modal Overlay) */
+        .bestand-filter-container { background: #e5e5ea; padding: 12px 15px; border-radius: 15px; display: flex; align-items: center; }
+        .bestand-filter-input { width: 100%; border: none; background: transparent; font-size: 16px; outline: none; font-family: -apple-system, sans-serif; }
+
+        /* Professioneller iOS Picker Dialog */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: flex-end; }
         .modal-sheet { background: var(--card); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px 20px 40px 20px; box-sizing: border-box; width: 100%; max-width: 480px; animation: slideUp 0.25s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -142,16 +153,31 @@
     <div class="header-row">
         <div class="back-btn" onclick="vibrate(); goScreen('home')">‹</div>
         <h2 id="current-shop-title" style="margin:0;">Laden</h2>
-        <button id="bestand-sort-btn" style="display:none; margin-left:auto; background:white; border:1px solid var(--blue); color:var(--blue); padding:6px 12px; border-radius:10px; font-weight:bold; font-size:13px;" onclick="cycleBestandSort()">⇅ Sortieren: Zone</button>
-        <button id="list-clear-btn" style="margin-left:auto; color:var(--red); border:none; background:none; font-weight:600;" onclick="clearCurrentList()">Leeren</button>
-    </div>
-    <div class="search-container">
-        <div style="position: relative; display: flex; align-items: center;" onclick="toggleFullList()">
-            <input type="text" id="db-search" placeholder="Produkt hinzufügen..." oninput="filterProducts(this.value)" autocomplete="off" style="width:100%; padding:15px; border-radius:12px; border:none; font-size:16px;">
-            <span style="position: absolute; right: 15px; color: var(--blue); font-size: 12px; font-weight: bold;">▼</span>
+        
+        <div class="header-actions">
+            <div id="btn-toggle-search" class="icon-btn" onclick="toggleSearchField()">🔍</div>
+            <div id="btn-toggle-add" class="icon-btn" onclick="toggleAddField()">➕</div>
+            <button id="bestand-sort-btn" style="display:none; background:white; border:1px solid var(--blue); color:var(--blue); padding:6px 12px; border-radius:10px; font-weight:bold; font-size:13px;" onclick="cycleBestandSort()">⇅ Zone</button>
+            <button id="list-clear-btn" style="color:var(--red); border:none; background:none; font-weight:600; padding: 5px;" onclick="clearCurrentList()">Leeren</button>
         </div>
-        <div id="search-results" class="custom-dropdown"></div>
     </div>
+    
+    <div id="bestand-search-bar-container" class="toggle-container">
+        <div class="bestand-filter-container">
+            <input type="text" id="bestand-filter-input" class="bestand-filter-input" placeholder="Bestand durchsuchen..." oninput="filterBestandList(this.value)">
+        </div>
+    </div>
+
+    <div id="main-search-box" class="toggle-container">
+        <div class="search-container">
+            <div style="position: relative; display: flex; align-items: center;" onclick="toggleFullList()">
+                <input type="text" id="db-search" placeholder="Produkt schnell hinzufügen..." oninput="filterProducts(this.value)" autocomplete="off" style="width:100%; padding:12px; border-radius:10px; border:none; font-size:16px; margin-bottom:0;">
+                <span style="position: absolute; right: 15px; color: var(--blue); font-size: 12px; font-weight: bold;">▼</span>
+            </div>
+            <div id="search-results" class="custom-dropdown"></div>
+        </div>
+    </div>
+
     <div id="shopping-list-content"></div>
 </div>
 
@@ -168,7 +194,7 @@
         <option value="3">Zone 3 (Braun - Vorrat/Konserven)</option>
         <option value="4">Zone 4 (Blau - TK/Getränke)</option>
     </select>
-    <button id="db-save-btn" class="btn-action btn-blue" onclick="saveToMaster()">Speichern</button>
+    <button id="db-save-btn" class="btn-action var(--blue)" style="background:var(--blue);" onclick="saveToMaster()">Speichern</button>
     <button id="db-cancel-btn" class="btn-action" style="display:none; background:#8e8e93" onclick="resetDBForm()">Abbrechen</button>
     <div class="sort-row">
         <h3>Bestandsliste</h3>
@@ -201,9 +227,10 @@
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
     let checkedItems = JSON.parse(localStorage.getItem('shop_checked')) || {};
     let currentSortMode = 'name';
-    let currentBestandSortMode = 'zone'; // Standard für Bestand: Zone & Hersteller
+    let currentBestandSortMode = 'zone';
     let currentShop = "";
     let pendingItemRef = null;
+    let bestandQueryString = "";
 
     function vibrate() { if (navigator && navigator.vibrate) navigator.vibrate(15); }
 
@@ -227,7 +254,39 @@
         return `${parts[2]}.${parts[1]}.${parts[0]}`;
     }
 
-    // Alarm-Logik: Prüft, ob ein Datum die zonenabhängige Warnzeit unterschreitet
+    // Ein- und Ausklappfunktionen für die Kopfzeilen-Steuerung
+    function toggleSearchField() {
+        vibrate();
+        const el = document.getElementById('bestand-search-bar-container');
+        const btn = document.getElementById('btn-toggle-search');
+        if (el.style.display === "block") {
+            el.style.display = "none";
+            btn.classList.remove('active-toggle');
+            document.getElementById('bestand-filter-input').value = "";
+            bestandQueryString = "";
+            renderShopList();
+        } else {
+            el.style.display = "block";
+            btn.classList.add('active-toggle');
+            document.getElementById('bestand-filter-input').focus();
+        }
+    }
+
+    function toggleAddField() {
+        vibrate();
+        const el = document.getElementById('main-search-box');
+        const btn = document.getElementById('btn-toggle-add');
+        if (el.style.display === "block") {
+            el.style.display = "none";
+            btn.classList.remove('active-toggle');
+            closeSearch();
+        } else {
+            el.style.display = "block";
+            btn.classList.add('active-toggle');
+            document.getElementById('db-search').focus();
+        }
+    }
+
     function checkMHDAlarm(mhdStr, zone) {
         if (!mhdStr || mhdStr === "-") return false;
         const mhdDate = parseDate(mhdStr);
@@ -241,16 +300,20 @@
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         const z = parseInt(zone) || 0;
-        if (z === 3 || z === 4) return diffDays <= 30; // Zone 3 & 4: 1 Monat Warnzeit
-        if (z === 2) return diffDays <= 7;            // Zone 2: 1 Woche Warnzeit
-        return false;                                  // Zone 1: Kein Alarm
+        if (z === 3 || z === 4) return diffDays <= 30;
+        if (z === 2) return diffDays <= 7;
+        return false;
     }
 
-    // Findet das am nächsten liegende MHD eines Produkts heraus
     function getShortestMHD(item) {
         if (!item.dates || item.dates.length === 0) return new Date(2999, 11, 31);
         const validDates = item.dates.map(d => parseDate(d.mhd));
         return new Date(Math.min(...validDates));
+    }
+
+    function filterBestandList(val) {
+        bestandQueryString = val.trim().toLowerCase();
+        renderShopList();
     }
 
     function goScreen(id) {
@@ -258,14 +321,23 @@
         document.getElementById(id).classList.add('active');
         if(id === 'db') renderDBView();
         if(id === 'list') {
-            // Sortier-Button oben rechts steuern
+            // Ansichten und Felder beim Laden der Liste zurücksetzen
+            document.getElementById('bestand-search-bar-container').style.display = "none";
+            document.getElementById('main-search-box').style.display = "none";
+            document.getElementById('btn-toggle-search').classList.remove('active-toggle');
+            document.getElementById('btn-toggle-add').classList.remove('active-toggle');
+            document.getElementById('bestand-filter-input').value = "";
+            bestandQueryString = "";
+            
             if (currentShop === 'Bestand') {
                 document.getElementById('bestand-sort-btn').style.display = "block";
                 document.getElementById('list-clear-btn').style.display = "none";
+                document.getElementById('btn-toggle-search').style.display = "block"; // Lupe im Bestand zeigen
                 updateSortButtonLabel();
             } else {
                 document.getElementById('bestand-sort-btn').style.display = "none";
                 document.getElementById('list-clear-btn').style.display = "block";
+                document.getElementById('btn-toggle-search').style.display = "none"; // Lupe in Läden ausblenden (nur ➕ nötig)
             }
             renderShopList(); closeSearch(); 
         }
@@ -281,7 +353,7 @@
     }
 
     function updateSortButtonLabel() {
-        const labels = { 'zone': '⇅ Sortieren: Zone', 'mhd': '⇅ Sortieren: MHD', 'name': '⇅ Sortieren: A-Z' };
+        const labels = { 'zone': '⇅ Zone', 'mhd': '⇅ MHD', 'name': '⇅ A-Z' };
         document.getElementById('bestand-sort-btn').innerText = labels[currentBestandSortMode];
     }
 
@@ -307,23 +379,25 @@
     }
 
     function renderShopList() {
-        const list = cart[currentShop] || [];
+        let list = [...(cart[currentShop] || [])];
         const checked = checkedItems[currentShop] || [];
         
-        // Verzweigung der Sortierung
+        if (currentShop === 'Bestand' && bestandQueryString) {
+            list = list.filter(item => 
+                item.p.toLowerCase().includes(bestandQueryString) || 
+                item.h.toLowerCase().includes(bestandQueryString)
+            );
+        }
+        
         if (currentShop === 'Bestand') {
             if (currentBestandSortMode === 'zone') {
-                // Erst nach Zone, dann alphabetisch nach Hersteller, dann nach Name
                 list.sort((a, b) => (a.z || 99) - (b.z || 99) || a.h.localeCompare(b.h) || a.p.localeCompare(b.p));
             } else if (currentBestandSortMode === 'mhd') {
-                // Das am nächsten ablaufende Produkt ganz nach oben schieben
                 list.sort((a, b) => getShortestMHD(a) - getShortestMHD(b));
             } else {
-                // Rein alphabetisch nach Produktname
                 list.sort((a, b) => a.p.localeCompare(b.p));
             }
         } else {
-            // Klassischer Modus für die Discounter (Abgehakte nach unten, dann nach Zone)
             list.sort((a, b) => {
                 const aDone = checked.includes(a.id) ? 1 : 0;
                 const bDone = checked.includes(b.id) ? 1 : 0;
@@ -344,7 +418,7 @@
                 accordionHtml = `<div id="accordion-${item.id}" class="accordion-content">` + 
                     sortedDates.map(d => {
                         const isAlarm = checkMHDAlarm(d.mhd, item.z);
-                        if(isAlarm) hasAnyAlarm = true; // Markiert, dass die Hauptzeile ein Warn-Dreieck bekommt
+                        if(isAlarm) hasAnyAlarm = true;
                         return `
                             <div class="mhd-item ${isAlarm ? 'mhd-danger' : ''}">
                                 <span>📅 ${d.mhd} ${isAlarm ? '⚠️' : ''}</span>
@@ -564,9 +638,39 @@
     }
 
     function clearCurrentList() { if(confirm("Leeren?")) { cart[currentShop] = []; checkedItems[currentShop] = []; saveAll(); renderShopList(); } }
-    function saveAll() { localStorage.setItem('shop_master', JSON.stringify(masterData)); localStorage.setItem('shop_cart', JSON.stringify(cart)); localStorage.setItem('shop_checked', JSON.stringify(checkedItems)); }
-    function exportJSON() { const dataStr = JSON.stringify({master: masterData, cart: cart}, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); }
-    function importJSON(event) { const file = event.target.files[0]; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); masterData = data.master; cart = data.cart; saveAll(); location.reload(); } catch(err) { alert("Formatfehler."); } }; reader.readAsText(file); }
+    
+    function saveAll() { 
+        localStorage.setItem('shop_master', JSON.stringify(masterData)); 
+        localStorage.setItem('shop_cart', JSON.stringify(cart)); 
+        localStorage.setItem('shop_checked', JSON.stringify(checkedItems)); 
+    }
+    
+    function exportJSON() { 
+        const dataStr = JSON.stringify({master: masterData, cart: cart, checked: checkedItems}, null, 2); 
+        const blob = new Blob([dataStr], {type: "application/json"}); 
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = `backup_${new Date().toISOString().split('T')[0]}.json`; 
+        a.click(); 
+    }
+    
+    function importJSON(event) { 
+        const file = event.target.files[0]; 
+        const reader = new FileReader(); 
+        reader.onload = function(e) { 
+            try { 
+                const data = JSON.parse(e.target.result); 
+                masterData = data.master || []; 
+                cart = data.cart || {}; 
+                checkedItems = data.checked || {}; 
+                saveAll(); 
+                location.reload(); 
+            } catch(err) { 
+                alert("Formatfehler."); 
+            } 
+        }; 
+        reader.readAsText(file); 
+    }
 </script>
 </body>
 </html>
