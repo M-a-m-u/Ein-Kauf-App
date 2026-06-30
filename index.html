@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Einkaufs-Planer Pro v5.7</title>
+    <title>Einkaufs-Planer Pro v5.8</title>
     <style>
         :root {
             --bg-desktop: #d1d1d6; --bg-app: #f2f2f7;
@@ -100,6 +100,18 @@
         .bestand-filter-container { background: #e5e5ea; padding: 12px 15px; border-radius: 15px; display: flex; align-items: center; }
         .bestand-filter-input { width: 100%; border: none; background: transparent; font-size: 16px; outline: none; font-family: -apple-system, sans-serif; }
 
+        /* Historie-Stile */
+        .history-container { background: #ffffff; padding: 15px; border-radius: 16px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.05); max-height: 280px; overflow-y: auto; border: 1px solid #d1d1d6; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #efeef4; }
+        .history-item:last-child { border-bottom: none; }
+        .history-date { color: var(--gray); font-variant-numeric: tabular-nums; font-size: 11px; }
+        .history-action { font-weight: 600; margin-right: 5px; }
+        .history-action.plus { color: var(--green); }
+        .history-action.minus { color: var(--red); }
+        .history-name { flex: 1; margin: 0 8px; color: #333; font-weight: 500; }
+        .history-qty { font-weight: 700; background: #e5e5ea; padding: 2px 6px; border-radius: 6px; }
+        .history-empty { text-align: center; color: var(--gray); padding: 15px 0; font-size: 14px; }
+
         /* Professioneller iOS Picker Dialog */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: flex-end; }
         .modal-sheet { background: var(--card); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px 20px 40px 20px; box-sizing: border-box; width: 100%; max-width: 480px; animation: slideUp 0.25s ease-out; }
@@ -155,6 +167,7 @@
         <h2 id="current-shop-title" style="margin:0;">Laden</h2>
         
         <div class="header-actions">
+            <div id="btn-toggle-history" class="icon-btn" style="display:none;" onclick="toggleHistoryField()">🕒</div>
             <div id="btn-toggle-search" class="icon-btn" onclick="toggleSearchField()">🔍</div>
             <div id="btn-toggle-add" class="icon-btn" onclick="toggleAddField()">➕</div>
             <button id="bestand-sort-btn" style="display:none; background:white; border:1px solid var(--blue); color:var(--blue); padding:6px 12px; border-radius:10px; font-weight:bold; font-size:13px;" onclick="cycleBestandSort()">⇅ Zone</button>
@@ -162,6 +175,10 @@
         </div>
     </div>
     
+    <div id="bestand-history-container" class="toggle-container">
+        <div class="history-container" id="history-list-content"></div>
+    </div>
+
     <div id="bestand-search-bar-container" class="toggle-container">
         <div class="bestand-filter-container">
             <input type="text" id="bestand-filter-input" class="bestand-filter-input" placeholder="Bestand durchsuchen..." oninput="filterBestandList(this.value)">
@@ -226,6 +243,7 @@
     let masterData = JSON.parse(localStorage.getItem('shop_master')) || [];
     let cart = JSON.parse(localStorage.getItem('shop_cart')) || {};
     let checkedItems = JSON.parse(localStorage.getItem('shop_checked')) || {};
+    let bHistory = JSON.parse(localStorage.getItem('shop_history')) || [];
     let currentSortMode = 'name';
     let currentBestandSortMode = 'zone';
     let currentShop = "";
@@ -254,7 +272,61 @@
         return `${parts[2]}.${parts[1]}.${parts[0]}`;
     }
 
-    // Ein- und Ausklappfunktionen für die Kopfzeilen-Steuerung
+    function logHistory(action, name, hersteller, qty) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        
+        bHistory.unshift({
+            timestamp: `${dateStr}, ${timeStr} Uhr`,
+            action: action, 
+            name: name,
+            h: hersteller,
+            qty: qty
+        });
+
+        if (bHistory.length > 200) {
+            bHistory = bHistory.slice(0, 200);
+        }
+        localStorage.setItem('shop_history', JSON.stringify(bHistory));
+    }
+
+    function renderHistoryList() {
+        const container = document.getElementById('history-list-content');
+        if (bHistory.length === 0) {
+            container.innerHTML = '<div class="history-empty">Noch keine Bestandseinträge vorhanden.</div>';
+            return;
+        }
+
+        container.innerHTML = bHistory.map(item => `
+            <div class="history-item">
+                <span class="history-date">${item.timestamp}</span>
+                <span class="history-action ${item.action === '➕' ? 'plus' : 'minus'}">${item.action === '➕' ? 'ZUGANG' : 'ABGANG'}</span>
+                <span class="history-name"><b>${item.name}</b><br><small>${item.h}</small></span>
+                <span class="history-qty">${item.action === '➕' ? '+' : '-'}${item.qty}</span>
+            </div>
+        `).join('');
+    }
+
+    function toggleHistoryField() {
+        vibrate();
+        const el = document.getElementById('bestand-history-container');
+        const btn = document.getElementById('btn-toggle-history');
+        if (el.style.display === "block") {
+            el.style.display = "none";
+            btn.classList.remove('active-toggle');
+        } else {
+            document.getElementById('bestand-search-bar-container').style.display = "none";
+            document.getElementById('main-search-box').style.display = "none";
+            document.getElementById('btn-toggle-search').classList.remove('active-toggle');
+            document.getElementById('btn-toggle-add').classList.remove('active-toggle');
+            
+            renderHistoryList();
+            el.style.display = "block";
+            btn.classList.add('active-toggle');
+        }
+    }
+
     function toggleSearchField() {
         vibrate();
         const el = document.getElementById('bestand-search-bar-container');
@@ -266,6 +338,9 @@
             bestandQueryString = "";
             renderShopList();
         } else {
+            document.getElementById('bestand-history-container').style.display = "none";
+            document.getElementById('btn-toggle-history').classList.remove('active-toggle');
+            
             el.style.display = "block";
             btn.classList.add('active-toggle');
             document.getElementById('bestand-filter-input').focus();
@@ -281,6 +356,9 @@
             btn.classList.remove('active-toggle');
             closeSearch();
         } else {
+            document.getElementById('bestand-history-container').style.display = "none";
+            document.getElementById('btn-toggle-history').classList.remove('active-toggle');
+            
             el.style.display = "block";
             btn.classList.add('active-toggle');
             document.getElementById('db-search').focus();
@@ -321,23 +399,26 @@
         document.getElementById(id).classList.add('active');
         if(id === 'db') renderDBView();
         if(id === 'list') {
-            // Ansichten und Felder beim Laden der Liste zurücksetzen
             document.getElementById('bestand-search-bar-container').style.display = "none";
             document.getElementById('main-search-box').style.display = "none";
+            document.getElementById('bestand-history-container').style.display = "none";
             document.getElementById('btn-toggle-search').classList.remove('active-toggle');
             document.getElementById('btn-toggle-add').classList.remove('active-toggle');
+            document.getElementById('btn-toggle-history').classList.remove('active-toggle');
             document.getElementById('bestand-filter-input').value = "";
             bestandQueryString = "";
             
             if (currentShop === 'Bestand') {
                 document.getElementById('bestand-sort-btn').style.display = "block";
                 document.getElementById('list-clear-btn').style.display = "none";
-                document.getElementById('btn-toggle-search').style.display = "block"; // Lupe im Bestand zeigen
+                document.getElementById('btn-toggle-search').style.display = "block"; 
+                document.getElementById('btn-toggle-history').style.display = "block"; 
                 updateSortButtonLabel();
             } else {
                 document.getElementById('bestand-sort-btn').style.display = "none";
                 document.getElementById('list-clear-btn').style.display = "block";
-                document.getElementById('btn-toggle-search').style.display = "none"; // Lupe in Läden ausblenden (nur ➕ nötig)
+                document.getElementById('btn-toggle-search').style.display = "none"; 
+                document.getElementById('btn-toggle-history').style.display = "none"; 
             }
             renderShopList(); closeSearch(); 
         }
@@ -560,6 +641,8 @@
             pendingItemRef.dates.push({ uid: Date.now() + Math.random().toString(), mhd: finalMHDStr });
         }
 
+        logHistory('➕', pendingItemRef.p, pendingItemRef.h, count);
+
         document.getElementById('picker-modal').style.display = "none";
         pendingItemRef = null;
         saveAll();
@@ -612,10 +695,14 @@
                 saveAll(); renderShopList();
             }
         } else {
-            if (currentShop === 'Bestand' && item.dates && item.dates.length > 0) {
-                item.dates.sort((x, y) => parseDate(x.mhd) - parseDate(y.mhd));
-                item.dates.shift(); 
+            if (currentShop === 'Bestand') {
+                if (item.dates && item.dates.length > 0) {
+                    item.dates.sort((x, y) => parseDate(x.mhd) - parseDate(y.mhd));
+                    item.dates.shift(); 
+                }
+                logHistory('➖', item.p, item.h, 1);
             }
+            
             item.qty = parseInt(item.qty) - 1;
             if (item.qty <= 0) {
                 cart[currentShop] = cart[currentShop].filter(c => c.id != id);
@@ -630,6 +717,9 @@
         if (item && item.dates) {
             item.dates = item.dates.filter(d => d.uid !== uid);
             item.qty = item.dates.length;
+            
+            logHistory('➖', item.p, item.h, 1);
+
             if (item.qty <= 0) {
                 cart[currentShop] = cart[currentShop].filter(c => c.id != itemId);
             }
@@ -646,7 +736,7 @@
     }
     
     function exportJSON() { 
-        const dataStr = JSON.stringify({master: masterData, cart: cart, checked: checkedItems}, null, 2); 
+        const dataStr = JSON.stringify({master: masterData, cart: cart, checked: checkedItems, history: bHistory}, null, 2); 
         const blob = new Blob([dataStr], {type: "application/json"}); 
         const a = document.createElement('a'); 
         a.href = URL.createObjectURL(blob); 
@@ -663,7 +753,9 @@
                 masterData = data.master || []; 
                 cart = data.cart || {}; 
                 checkedItems = data.checked || {}; 
+                bHistory = data.history || [];
                 saveAll(); 
+                localStorage.setItem('shop_history', JSON.stringify(bHistory));
                 location.reload(); 
             } catch(err) { 
                 alert("Formatfehler."); 
